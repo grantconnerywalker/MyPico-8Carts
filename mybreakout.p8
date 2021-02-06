@@ -8,7 +8,12 @@ ball_dy=2
 ball_r=2 --radius
 ball_dr=0.5
 ball_color=10 --color
-frame=0
+
+pad_x=52
+pad_y=120
+pad_dx=0
+pad_w=24
+pad_h=3
 
 // these 13 executed every frame
 function _init()
@@ -16,9 +21,36 @@ function _init()
 end
 
 function _update()
-	frame=frame+1
-	ball_x=ball_x+ball_dx
-	ball_y=ball_y+ball_dy
+	buttpress=false
+	if btn(0) then
+		-- left
+		pad_dx=-5
+		buttpress=true
+	end
+	if btn(1) then
+		-- right
+		pad_dx=5
+		buttpress=true
+	end
+	-- deceleration
+	if not(buttpress) then
+		pad_dx/=1.75 -- make this into variable pad_decel
+	end
+	pad_x+=pad_dx
+	
+	-- keep paddle in walls
+	if pad_x+pad_w>127 then
+		pad_x=127-pad_w
+	end
+	if pad_x<0 then
+		pad_x=0
+	end
+
+	-- collision detection
+	-- todo
+
+	ball_x+=ball_dx
+	ball_y+=ball_dy
 --	ball_r=2+sin(frame)
 	
 	// this is where we check
@@ -39,6 +71,7 @@ end
 function _draw()
 	rectfill(0,0,127,127,1)
  circfill(ball_x,ball_y,ball_r,ball_color)
+	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -49,4 +82,4 @@ __gfx__
 00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 000100001a3501a350193501934019340193301b3001d3000d300203001e3001c3001a30019300183001630014300143001820019200192001a2001b2001b2001c2001c2001c2001c2001c2001c2001c20025700
-002200001d400214002440026400284002a4002b4002a4002840025400204001c4001a40018400174001540014400144001540016400194001b4001c4001c4001b4001a4001a4001a4001b100000000000000000
+000100000945008450084500845008450084500845008450094500f0001c0001f0001e000140000e0000c00019000200001f000200000d0000c0002700020000210002a0000c0000e0002a000210002100000000
