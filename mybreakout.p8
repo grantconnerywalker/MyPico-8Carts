@@ -63,15 +63,35 @@ function _update()
 		ball_dy=-ball_dy
 		sfx(0)
 	end
---	if ball_r > 2 or ball_r < 1 then
---		ball_dr=-ball_dr
---	end
+
+	if ball_box(pad_x,pad_y,pad_w,pad_h) then
+		-- todo handle collision
+		ball_dy*=-1
+		sfx(1)
+	end
 end
 
 function _draw()
 	rectfill(0,0,127,127,1)
  circfill(ball_x,ball_y,ball_r,ball_color)
 	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
+end
+
+// ball and paddle collision
+function ball_box(box_x,box_y,box_w,box_h)
+	if ball_y-ball_r > box_y+box_h then
+		return false
+	end
+	if ball_y+ball_r < box_y then
+		return false
+	end
+	if ball_x-ball_r > box_x+box_w then
+		return false
+	end
+	if ball_x+ball_r < box_x then
+		return false
+	end
+	return true
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
