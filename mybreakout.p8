@@ -40,7 +40,8 @@ function update_game()
 
 	nextx=ball_x+ball_dx
 	nexty=ball_y+ball_dy
-	
+
+	-- check if ball hit pad	
 	if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
 		-- find out which direction to deflect
   if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,pad_x,pad_y,pad_w,pad_h) then
@@ -51,7 +52,30 @@ function update_game()
 		score+=1
 		sfx(1)
 	end
-			
+
+	-- check if ball hit brick
+	for i=1,#brick_x do
+		if brick_v[i] and ball_box(nextx,nexty,brick_x[i],brick_y[i],brick_w,brick_h) then
+			-- find out which direction to deflect
+	  if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,brick_x[i],brick_y[i],brick_w,brick_h) then
+	   ball_dx = -ball_dx
+	  else
+	   ball_dy = -ball_dy
+	  end
+			score+=10
+			brick_v[i]=false
+			sfx(5)
+		end
+	end
+	
+	-- check if win
+	-- todo change to wingame()
+	local finish=true
+	for i=1,#brick_v do
+		if brick_v[i] then finish = false end
+	end
+	if finish then gameover() end
+		
 	ball_x=nextx
 	ball_y=nexty
 	
@@ -94,14 +118,22 @@ function draw_game()
 	-- fill background
 	cls(1)
 	
-	-- draw updates
+	-- draw ball and paddle
 	print(message, 0, 0, 8)
  circfill(ball_x,ball_y,ball_r,ball_color)
 	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
 	
+	-- draw bricks
+	for i=1,#brick_x do
+		if brick_v[i] then
+			rectfill(brick_x[i],brick_y[i],brick_x[i]+brick_w,brick_y[i]+brick_h,brick_c)
+		end
+	end
+	
 	rectfill(0,0,128,banner,0)
 	print("lives:"..lives,1,1,7)
 	print("score:"..score,40,1,7)
+	print("debug:"..debug1,80,1,7)
 end
 
 function draw_start()
@@ -135,8 +167,31 @@ function startgame()
 	pad_w=24
 	pad_h=3
 	
+	brick_x={}
+	brick_y={}
+	brick_v={}
+	brick_w=10
+	brick_h=4
+	brick_c=14
+	buildbricks()
+	
 	lives=3
 	score=0
+	
+	--debug
+	debug1=""
+end
+
+function buildbricks()
+	local i
+	brick_x={}
+	brick_y={}
+	brick_v={}
+	for i=1,10 do
+		add(brick_x,5+(i-1)*(brick_w+2)) --increment 60
+		add(brick_y,20)
+		add(brick_v,true)
+	end
 end
 
 function gameover()
@@ -145,8 +200,8 @@ function gameover()
 end
 
 function serveball()
-	ball_x=1 --position
-	ball_y=64
+	ball_x=5 --position
+	ball_y=33
 	ball_dx=1 -- speed
 	ball_dy=1
 end
@@ -269,3 +324,6 @@ __sfx__
 000100002405024050240502405024050240402404024040240400f0001c0001f0001e000140000e0000c00019000200001f000200000d0000c0002700020000210002a0000c0000e0002a000210002100000000
 000f00002d030290302603023030000002903026030220301f0300000025030220301f0301d030000000f0300c0300d0300d0300d0300d0300000000000000000000000000000000000000000000000000000000
 0002000026450214501a45014450114500e4500b45008450074500545004450044500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000300000965008650086500765006650066500665022600236002560026600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000300003b35039350383502635015350013500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000200003a0003a0003a0003a0003a0003a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
