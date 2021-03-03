@@ -1,6 +1,17 @@
 pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
+// goals
+// 1. sticky paddle
+// 2. wide paddle powerup?
+// 3. angle control
+// 3a. combos
+// 4. levels
+// 5. different bricks
+// 5a. powerups
+// 6. juiciness (particles/shake)
+// 8. high score
+
 function _init()
  cls()	
 	// state
@@ -34,72 +45,88 @@ end
 ---- user defined functions ----
 --------------------------------
 function update_game()
-	local nextx, nexty
+	local nextx,nexty,brickhit
 
 	move_paddle()
 
-	nextx=ball_x+ball_dx
-	nexty=ball_y+ball_dy
+ if sticky then
+  ball_x=pad_x+flr(pad_w/2)
+		ball_y=pad_y-ball_r-1
+ else
+		nextx=ball_x+ball_dx
+		nexty=ball_y+ball_dy
 
-	-- check if ball hit pad	
-	if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
-		-- find out which direction to deflect
-  if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,pad_x,pad_y,pad_w,pad_h) then
-   ball_dx = -ball_dx
-  else
-   ball_dy = -ball_dy
-  end
-		score+=1
-		sfx(1)
-	end
-
-	-- check if ball hit brick
-	for i=1,#brick_x do
-		if brick_v[i] and ball_box(nextx,nexty,brick_x[i],brick_y[i],brick_w,brick_h) then
+		-- check if ball hit pad	
+		if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
 			-- find out which direction to deflect
-	  if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,brick_x[i],brick_y[i],brick_w,brick_h) then
-	   ball_dx = -ball_dx
-	  else
-	   ball_dy = -ball_dy
-	  end
-			score+=10
-			brick_v[i]=false
-			sfx(5)
+  	if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,pad_x,pad_y,pad_w,pad_h) then
+   	ball_dx = -ball_dx
+   	if ball_x < pad_x+pad_w/2 then
+   		nextx=pad_x-ball_r
+   	else
+   		nextx=pad_x+pad_w+ball_r
+   	end
+  	else
+   	ball_dy = -ball_dy
+   	if ball_y > pad_y then
+   		nexty=pad_y+pad_h+ball_r
+   	else
+   		nexty=pad_y-ball_r
+   	end
+  	end
+			score+=1
+			sfx(1)
 		end
-	end
-	
-	-- check if win
-	-- todo change to wingame()
-	local finish=true
-	for i=1,#brick_v do
-		if brick_v[i] then finish = false end
-	end
-	if finish then gameover() end
-		
-	ball_x=nextx
-	ball_y=nexty
-	
-	// this is where we check
-	// if the ball hits the edges
-	if nextx > 127 or nextx < 0 then
-		nextx=mid(0,nextx,127)
-		ball_dx=-ball_dx
-		sfx(0)
-	end
-	if nexty < (banner+2) then
-		nexty=mid(0,nexty,127)
-		ball_dy=-ball_dy
-		sfx(0)
-	elseif nexty > 129 then
-		lives-=1
-		if lives < 0 then
-			gameover()
-		else
-			sfx(3)
-			serveball()
+		-- check if ball hit brick
+		brickhit=false
+		for i=1,#brick_x do
+			if brick_v[i] and ball_box(nextx,nexty,brick_x[i],brick_y[i],brick_w,brick_h) then
+				-- find out which direction to deflect
+				if not(brickhit) then
+	   	if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,brick_x[i],brick_y[i],brick_w,brick_h) then
+	    	ball_dx = -ball_dx
+	   	else
+	    	ball_dy = -ball_dy
+ 	  	end
+	  	end
+	  	brickhit=true
+				score+=10
+				brick_v[i]=false
+				sfx(5)
+			end
 		end
-	end
 		
+		-- check if win
+		-- todo change to wingame()
+		local finish=true
+		for i=1,#brick_v do
+			if brick_v[i] then finish = false end
+		end
+		if finish then gameover() end
+		ball_x=nextx
+		ball_y=nexty
+	
+		// this is where we check
+		// if the ball hits the edges
+		if nextx > 127 or nextx < 0 then
+			nextx=mid(0,nextx,127)
+			ball_dx=-ball_dx
+			sfx(0)
+		end
+		if nexty < (banner+2) then
+			nexty=mid(0,nexty,127)
+			ball_dy=-ball_dy
+			sfx(0)
+		elseif nexty > 129 then
+			lives-=1
+			if lives < 0 then
+				gameover()
+			else
+				sfx(3)
+				serveball()
+			end
+		end
+	end	
 end
 
 function update_start()
@@ -121,6 +148,10 @@ function draw_game()
 	-- draw ball and paddle
 	print(message, 0, 0, 8)
  circfill(ball_x,ball_y,ball_r,ball_color)
+ if sticky then
+ 	-- serve preview, not sure why need - on the y's
+ 	line(ball_x+ball_dx*4,ball_y-ball_dy*4,ball_x+ball_dx*6,ball_y-ball_dy*6,10)
+ end
 	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
 	
 	-- draw bricks
@@ -170,13 +201,15 @@ function startgame()
 	brick_x={}
 	brick_y={}
 	brick_v={}
-	brick_w=10
+	brick_w=9
 	brick_h=4
 	brick_c=14
 	buildbricks()
 	
 	lives=3
 	score=0
+	
+	sticky=true
 	
 	--debug
 	debug1=""
@@ -187,9 +220,9 @@ function buildbricks()
 	brick_x={}
 	brick_y={}
 	brick_v={}
-	for i=1,10 do
-		add(brick_x,5+(i-1)*(brick_w+2)) --increment 60
-		add(brick_y,20)
+	for i=1,66 do
+		add(brick_x,4+((i-1)%11)*(brick_w+2)) --increment 60
+		add(brick_y,20+flr((i-1)/11)*(brick_h+2))
 		add(brick_v,true)
 	end
 end
@@ -200,10 +233,11 @@ function gameover()
 end
 
 function serveball()
-	ball_x=5 --position
-	ball_y=33
-	ball_dx=1 -- speed
-	ball_dy=1
+	ball_x=pad_x+flr(pad_w/2)
+	ball_y=pad_y-ball_r-pad_h
+	ball_dx=1
+	ball_dy=-1
+	sticky=true
 end
 
 // paddle movement
@@ -214,11 +248,20 @@ function move_paddle()
 		-- left
 		pad_dx=-pad_speed
 		buttpress=true
+		if sticky then
+			ball_dx=-1
+		end
 	end
 	if btn(1) then
 		-- right
 		pad_dx=pad_speed
 		buttpress=true
+		if sticky then
+			ball_dx=1
+		end
+	end
+	if sticky and btnp(5) then
+		sticky=false
 	end
 	-- deceleration
 	if not(buttpress) then
@@ -246,71 +289,27 @@ end
 
 // deflect if hit edge
 function deflx_ball_box(bx,by,bdx,bdy,tx,ty,tw,th)
- -- calculate wether to deflect the ball
- -- horizontally or vertically when it hits a box
- if bdx == 0 then
-  -- moving vertically
-  return false
- elseif bdy == 0 then
-  -- moving horizontally
-  return true
+ local slp = bdy / bdx
+	local cx, cy
+ if bdx == 0 then return false
+ elseif bdy == 0 then return true
+ elseif slp > 0 and bdx > 0 then
+  cx = tx - bx
+  cy = ty - by
+  return cx > 0 and cy/cx < slp
+ elseif slp < 0 and bdx > 0 then
+  cx = tx - bx
+  cy = ty + th - by
+  return cx > 0 and cy/cx >= slp
+ elseif slp > 0 and bdx < 0 then
+  cx = tx + tw - bx
+  cy = ty + th - by
+  return cx < 0 and cy/cx <= slp
  else
-  -- moving diagonally
-  -- calculate slope
-  local slp = bdy / bdx
-  local cx, cy
-  -- check variants
-  if slp > 0 and bdx > 0 then
-   -- moving down right
-   debug1="q1"
-   cx = tx-bx
-   cy = ty-by
-   if cx<=0 then
-    return false
-   elseif cy/cx < slp then
-    return true
-   else
-    return false
-   end
-  elseif slp < 0 and bdx > 0 then
-   debug1="q2"
-   -- moving up right
-   cx = tx-bx
-   cy = ty+th-by
-   if cx<=0 then
-    return false
-   elseif cy/cx < slp then
-    return false
-   else
-    return true
-   end
-  elseif slp > 0 and bdx < 0 then
-   debug1="q3"
-   -- moving left up
-   cx = tx+tw-bx
-   cy = ty+th-by
-   if cx>=0 then
-    return false
-   elseif cy/cx > slp then
-    return false
-   else
-    return true
-   end
-  else
-   -- moving left down
-   debug1="q4"
-   cx = tx+tw-bx
-   cy = ty-by
-   if cx>=0 then
-    return false
-   elseif cy/cx < slp then
-    return false
-   else
-    return true
-   end
-  end
+  cx = tx + tw - bx
+  cy = ty - by
+  return cx < 0 and cy/cx >= slp
  end
- return false
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
