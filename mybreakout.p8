@@ -2,11 +2,12 @@ pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
 // goals
-// 2. wide paddle powerup?
-// 3. angle control
-// 3a. combos
-// 4. levels
 // 5. different bricks
+--    - hardened bricks
+--    - indestructible
+--    - exploding brick
+--    - powerup brick
+
 // 5a. powerups
 // 6. juiciness (particles/shake)
 // 8. high score
@@ -16,6 +17,15 @@ function _init()
 	// state
 	message=""	
 	mode="start"
+	level="xxxxxb"
+	levelnum = 1
+	levels={}
+	levels[1]="xxxxxb"
+	levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
+	levels[1]="////x4b/s9s"
+	
+		--debug
+	debug1=""
 end
 
 function _update60()
@@ -25,6 +35,8 @@ function _update60()
 		update_start()
 	elseif mode=="gameover" then
 		update_gameover()
+	elseif mode=="levelover" then
+		update_levelover()
 	end
 end
 
@@ -35,6 +47,8 @@ function _draw()
 		draw_start()
 	elseif mode=="gameover" then
 		draw_gameover()
+	elseif mode=="levelover" then
+		draw_levelover()
 	end
 end
 
@@ -107,27 +121,20 @@ function update_game()
 					end
 				end
 				brickhit=true
-				score+=multiplier
-				multiplier+=1
-				brick_v[i]=false
-				if multiplier>5 then
-					sfx(6)
-				elseif multiplier>15 then
-					sfx(7)
-				else
-					sfx(5)
-				end
+				hitbrick(i)
 			end
 		end
 		
 		-- check if win
-		local finish=true
-		for i=1,#brick_v do
-			if brick_v[i] then finish = false end
+		if levelfinished() then
+			_draw()
+			levelover()
 		end
-		if finish then gameover() end
+		
 		ball_x=nextx
 		ball_y=nexty
+		
+		checkexplosions()
 		
 		-- this is where we check
 		--- if the ball hits the edges
@@ -152,6 +159,70 @@ function update_game()
 	end	
 end
 
+function hitbrick(_i)
+	if brick_t[_i] == "b" then
+		score+=multiplier
+		multiplier+=1
+		brick_v[_i]=false
+		if multiplier>5 then
+			sfx(6)
+		elseif multiplier>15 then
+			sfx(7)
+		else
+			sfx(5)
+		end
+	elseif brick_t[_i] == "i" then
+		sfx(9)
+	elseif brick_t[_i] == "h" then
+		sfx(10)
+		brick_t[_i] = "b"
+	elseif brick_t[_i] == "p" then
+		-- todo drop powerup and sfx
+		sfx(7)
+		score+=multiplier
+		multiplier+=1
+		brick_v[_i]=false
+	elseif brick_t[_i] == "s" then
+		--splode sfx (pink?)
+		sfx(11)
+		brick_t[_i]="zz"
+		score+=multiplier
+		multiplier+=1
+	end
+end
+
+function checkexplosions()
+	for i=1,#brick_x do
+		if brick_t[i] == "zz" then
+			brick_t[i] = "z"
+		end
+	end
+
+	for i=1,#brick_x do
+		if brick_t[i] == "z" then
+			explodebrick(i)
+		end
+	end
+	
+	for i=1,#brick_x do
+		if brick_t[i] == "zz" then
+			brick_t[i] = "z"
+		end
+	end
+end
+
+function explodebrick(_i)
+	brick_v[_i]=false
+	for j=1,#brick_x do
+		if j!=_i and brick_v[j] 
+		and abs(brick_x[j]-brick_x[_i]) <= (brick_w+2)
+		and abs(brick_y[j]-brick_y[_i]) <= (brick_h+2)
+		then
+			hitbrick(j)
+		end
+	end
+end
+
 function update_start()
 	if btn(5) then
 		startgame()
@@ -161,6 +232,12 @@ end
 function update_gameover()
 	if btn(5) then
 		startgame()
+	end
+end
+
+function update_levelover()
+	if btn(5) then
+		nextlevel()
 	end
 end
 
@@ -180,14 +257,32 @@ function draw_game()
 	-- draw bricks
 	for i=1,#brick_x do
 		if brick_v[i] then
-			rectfill(brick_x[i],brick_y[i],brick_x[i]+brick_w,brick_y[i]+brick_h,brick_c)
+			if brick_t[i] == "b" then
+				brickcol = 14
+			elseif brick_t[i] == "i" then
+				brickcol = 15
+			elseif brick_t[i] == "h" then
+				brickcol = 6
+			elseif brick_t[i] == "s" then
+				brickcol = 8
+			elseif brick_t[i] == "p" then
+				brickcol = 12
+			--this type for debug only
+			elseif brick_t[i] == "z" or brick_t[i] == "zz" then
+				brickcol = 3
+			end
+			rectfill(brick_x[i],brick_y[i],brick_x[i]+brick_w,brick_y[i]+brick_h,brickcol)
 		end
 	end
 	
 	rectfill(0,0,128,banner,0)
-	print("lives:"..lives,1,1,7)
-	print("score:"..score,40,1,7)
-	print("debug:"..debug1,80,1,7)
+	if debug1!="" then
+		print("debug:"..debug1,1,1,7)
+	else
+		print("lives:"..lives,1,1,7)
+		print("score:"..score,40,1,7)
+	--	print("debug:"..debug1,80,1,7)
+	end
 end
 
 function draw_start()
@@ -201,6 +296,13 @@ function draw_gameover()
 	print("game over!",47,62,7)
 	print("press ❎ to restart",30,68,6)
 end
+
+function draw_levelover()
+	rectfill(0,60,128,75,0)
+	print("stage clear!",47,62,7)
+	print("press ❎ to continue",30,68,6)
+end
+
 
 function startgame()
 	mode="game"
@@ -227,8 +329,10 @@ function startgame()
 	brick_v={}
 	brick_w=9
 	brick_h=4
-	brick_c=14
-	buildbricks()
+	
+	levelnum = 1
+	level = levels[levelnum]
+	buildbricks(level)
 	
 	lives=3
 	score=0
@@ -236,25 +340,103 @@ function startgame()
 	
 	sticky=true
 	
-	--debug
-	debug1=""
 end
 	
-function buildbricks()
+function nextlevel()
+	mode="game"
+	
+	pad_x=52
+	pad_y=120
+	pad_dx=0
+	
+	levelnum += 1
+	if levelnum > #levels then
+		--beaten the game, change
+		-- gameover to special screen
+		startgame()
+	end
+	level = levels[levelnum]
+	buildbricks(level)
+	
+	sticky=true
+	
+	serveball()
+end
+	
+	
+function buildbricks(lvl)
 	local i
 	brick_x={}
 	brick_y={}
 	brick_v={}
-	for i=1,66 do
-		add(brick_x,4+((i-1)%11)*(brick_w+2)) --increment 60
-		add(brick_y,20+flr((i-1)/11)*(brick_h+2))
-		add(brick_v,true)
+	brick_t={}
+	
+	j=0
+	-- b = normal
+	-- x = space
+	-- i = indestructible
+	-- h = hardened
+	-- s = sploding
+	-- p = powerup
+	for i=1,#lvl do
+		j+=1
+		char=sub(lvl,i,i)
+		
+		if char=="b" 
+		or char=="i" 
+		or char=="h" 
+		or char=="s" 
+		or char=="p" then
+			last=char
+			addbrick(j,char)
+		elseif char=="x" then
+			last="x"
+		elseif char=="/" then
+			j=(flr((j-1)/11)+1)*11
+		elseif char>="0" and char<="9" then
+			for o=1,char+0 do
+				if last=="b" 
+				or last=="i" 
+				or last=="h" 
+				or last=="s" 
+				or last=="p" then
+					addbrick(j,last)
+				elseif last=="x" then
+					--nothing, empty space
+				end
+				j+=1
+			end
+			j-=1
+		end
 	end
+end
+	
+function addbrick(_i,_t)
+	add(brick_x,4+((_i-1)%11)*(brick_w+2))
+	add(brick_y,20+flr((_i-1)/11)*(brick_h+2))
+	add(brick_v,true)
+	add(brick_t,_t)
 end
 	
 function gameover()
 	sfx(2)
 	mode="gameover"
+end
+
+function levelover()
+	sfx(8) -- todo change sound
+	mode="levelover"
+end
+
+function levelfinished()
+	if #brick_v == 0 then return true end
+	
+	for i=1,#brick_v do
+		if brick_v[i] == true and brick_t[i] != "i" then
+			return false
+		end
+	end
+	return true
 end
 	
 function serveball()
@@ -367,10 +549,17 @@ end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+__map__
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000101010101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 00010000143501434014340143301333012320123101d3000d300203001e3001c3001a30019300183001630014300143001820019200192001a2001b2001b2001c2001c2001c2001c2001c2001c2001c20025700
 000100002405024050240502405024050240402404024040240400f0001c0001f0001e000140000e0000c00019000200001f000200000d0000c0002700020000210002a0000c0000e0002a000210002100000000
@@ -380,3 +569,7 @@ __sfx__
 000300003b35039350383502635015350013500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00020000393503835036350343502f350313503a35000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00020000193501a3501d3500d3500f350223502435026350283500e3500f35011350123502a3502d3502e35025300000000000000000000000000000000000000000000000000000000000000000000000000000
+00100000000001c3501d3501f3502235023350193101c3202a3502c3502d35018320203502435027350293502c3502d3502e3502e3502e3500000000000000000000000000000000000000000000000000000000
+000300003a4503a4503b4503640036400114000000000000197000000000000000000000000000000000000020600000000000037400000000000000000000000000000000000000000000000000000000000000
+000200001c7501c7501d7501d75000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00020000166501a6501d6501f65020650206501f6501c6501965016650126500e65015000100000f0002d6002c6002b6002a600286002560023600206001e6001c60019600176001560013600106000d6000a600
