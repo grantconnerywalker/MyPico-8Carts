@@ -2,13 +2,16 @@ pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
 // goals
-// 5. different bricks
---    - hardened bricks
---    - indestructible
---    - exploding brick
---    - powerup brick
-
 // 5a. powerups
+--     -- pills
+--     -- speeddown
+--     -- speedup (plus score up?)
+--     -- 1up
+--     -- sticky
+--     -- expand
+--     -- reduce (plus score up?)
+--     -- megaball
+--     -- multiball
 // 6. juiciness (particles/shake)
 // 8. high score
 
@@ -20,9 +23,10 @@ function _init()
 	level="xxxxxb"
 	levelnum = 1
 	levels={}
-	levels[1]="xxxxxb"
-	levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
-	levels[1]="////x4b/s9s"
+	--levels[1]="xxxxxb"
+	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
+	--levels[1]="////x4b/s9s"
+	levels[1]="b9b/p9p"
 	
 		--debug
 	debug1=""
@@ -121,7 +125,7 @@ function update_game()
 					end
 				end
 				brickhit=true
-				hitbrick(i)
+				hitbrick(i,true)
 			end
 		end
 		
@@ -131,8 +135,25 @@ function update_game()
 			levelover()
 		end
 		
+		-- move ball
 		ball_x=nextx
 		ball_y=nexty
+
+		-- move pills
+		-- check pill collision
+		for i=1,#pill_x do
+			if pill_v[i] then
+				pill_y[i]+=0.7
+				if pill_y[i] > 128 then
+					pill_v[i] = false
+				end
+				-- 8x6 is current sprite size
+				if box_box(pill_x[i],pill_y[i],8,6,pad_x,pad_y,pad_w,pad_h) then
+					sfx(12)
+					pill_v[i] = false
+				end
+			end
+		end
 		
 		checkexplosions()
 		
@@ -159,11 +180,13 @@ function update_game()
 	end	
 end
 
-function hitbrick(_i)
+function hitbrick(_i,_combo)
 	if brick_t[_i] == "b" then
-		score+=multiplier
-		multiplier+=1
 		brick_v[_i]=false
+		if _combo then
+			score+=10*multiplier
+			multiplier+=1
+		end
 		if multiplier>5 then
 			sfx(6)
 		elseif multiplier>15 then
@@ -179,16 +202,31 @@ function hitbrick(_i)
 	elseif brick_t[_i] == "p" then
 		-- todo drop powerup and sfx
 		sfx(7)
-		score+=multiplier
-		multiplier+=1
+		if _combo then
+			score+=multiplier
+			multiplier+=1
+		end
 		brick_v[_i]=false
+		spawnpill(brick_x[_i],brick_y[_i])
 	elseif brick_t[_i] == "s" then
 		--splode sfx (pink?)
 		sfx(11)
 		brick_t[_i]="zz"
-		score+=multiplier
-		multiplier+=1
+		if _combo then
+			score+=multiplier
+			multiplier+=1
+		end
 	end
+end
+
+function spawnpill(_x,_y)
+	-- 7 because 7 powerups
+	local _t =	flr(rnd(7)+1)
+
+	add(pill_x,_x)
+	add(pill_y,_y)
+	add(pill_v,true)
+	add(pill_t,_t)
 end
 
 function checkexplosions()
@@ -218,7 +256,7 @@ function explodebrick(_i)
 		and abs(brick_x[j]-brick_x[_i]) <= (brick_w+2)
 		and abs(brick_y[j]-brick_y[_i]) <= (brick_h+2)
 		then
-			hitbrick(j)
+			hitbrick(j, false)
 		end
 	end
 end
@@ -272,6 +310,18 @@ function draw_game()
 				brickcol = 3
 			end
 			rectfill(brick_x[i],brick_y[i],brick_x[i]+brick_w,brick_y[i]+brick_h,brickcol)
+		end
+	end
+	
+	-- draw pills
+	for i=1,#pill_x do
+		if pill_v[i] then
+			if pill_t[i]==5 then
+				palt(0,false)
+				palt(15,true)
+			end
+			spr(pill_t[i],pill_x[i],pill_y[i])
+			palt()
 		end
 	end
 	
@@ -329,6 +379,8 @@ function startgame()
 	brick_v={}
 	brick_w=9
 	brick_h=4
+	
+	resetpills()
 	
 	levelnum = 1
 	level = levels[levelnum]
@@ -410,6 +462,13 @@ function buildbricks(lvl)
 		end
 	end
 end
+
+function resetpills()
+	pill_x={}
+	pill_y={}
+	pill_v={}
+	pill_t={}
+end
 	
 function addbrick(_i,_t)
 	add(brick_x,4+((_i-1)%11)*(brick_w+2))
@@ -445,8 +504,9 @@ function serveball()
 	ball_dx=1
 	ball_dy=-1
 	ball_ang=1
-	sticky=true
 	
+	resetpills()
+	sticky=true
 end
 	
 function setang(ang)
@@ -521,6 +581,15 @@ function ball_box(bx,by,box_x,box_y,box_w,box_h)
 	if bx+ball_r < box_x then	return false end
 	return true
 end
+
+// box and box collision
+function box_box(box1_x,box1_y,box1_w,box1_h,box2_x,box2_y,box2_w,box2_h)
+	if box1_y > box2_y+box2_h then	return false end
+	if box1_y+box1_h < box2_y then	return false end
+	if box1_x > box2_x+box2_w then	return false end
+	if box1_x+box1_x < box2_x then	return false end
+	return true
+end
 	
 // deflect if hit edge
 function deflx_ball_box(bx,by,bdx,bdy,tx,ty,tw,th)
@@ -547,12 +616,14 @@ function deflx_ball_box(bx,by,bdx,bdy,tx,ty,tw,th)
 	end
 end
 __gfx__
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700008888000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000006777760067777600677776006777760f677776f06777760067777600000000000000000000000000000000000000000000000000000000000000000
+00000000559944955576777555b33bb555c1c1c55508800555e222e5558288850000000000000000000000000000000000000000000000000000000000000000
+00700700559499955576777555b3bbb555cc1cc55508080555e222e5558288850000000000000000000000000000000000000000000000000000000000000000
+00077000559949955576777555b3bbb555cc1cc55508800555e2e2e5558228850000000000000000000000000000000000000000000000000000000000000000
+00077000554499955576677555b33bb555c1c1c55508080555e2e2e5558228850000000000000000000000000000000000000000000000000000000000000000
+00700700059999500577775005bbbb5005cccc50f500005f05eeee50058888500000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000ffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000ffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -573,3 +644,4 @@ __sfx__
 000300003a4503a4503b4503640036400114000000000000197000000000000000000000000000000000000020600000000000037400000000000000000000000000000000000000000000000000000000000000
 000200001c7501c7501d7501d75000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00020000166501a6501d6501f65020650206501f6501c6501965016650126500e65015000100000f0002d6002c6002b6002a600286002560023600206001e6001c60019600176001560013600106000d6000a600
+00010000350502e050210501a050170503205034050310501d0501805017050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
