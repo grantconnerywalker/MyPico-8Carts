@@ -3,7 +3,6 @@ version 29
 __lua__
 // goals
 // 5a. powerups
---     -- pills
 --     -- speeddown
 --     -- speedup (plus score up?)
 --     -- 1up
@@ -62,10 +61,23 @@ end
 function update_game()
 	local nextx,nexty,brickhit
 
+	-- check if pad should grow
+	if powerup==4 then
+		-- todo gradual growth
+		pad_w=flr(pad_wo*1.5)
+	elseif powerup==5 then
+		-- check if pad should shrink
+		pad_w=flr(pad_wo/2)
+		pointsmult=2
+	else
+		pad_w=pad_wo
+	end
+
 	move_paddle()
 
 	if sticky then
-		ball_x=pad_x+flr(pad_w/2)
+		--ball_x=pad_x+flr(pad_w/2)
+		ball_x=pad_x+sticky_x
 		ball_y=pad_y-ball_r-1
 	else
 		nextx=ball_x+ball_dx
@@ -107,9 +119,16 @@ function update_game()
 					end
 				end
 			end
-			score+=multiplier
+			
+			score+=multiplier*pointsmult
 			multiplier=1
 			sfx(1)
+			
+			--catch powerup
+			if powerup==3 and ball_dy<0 then
+				sticky=true	
+				sticky_x=ball_x-pad_x
+			end
 		end
 		
 		-- check if ball hit brick
@@ -138,24 +157,6 @@ function update_game()
 		-- move ball
 		ball_x=nextx
 		ball_y=nexty
-
-		-- move pills
-		-- check pill collision
-		for i=1,#pill_x do
-			if pill_v[i] then
-				pill_y[i]+=0.7
-				if pill_y[i] > 128 then
-					pill_v[i] = false
-				end
-				-- 8x6 is current sprite size
-				if box_box(pill_x[i],pill_y[i],8,6,pad_x,pad_y,pad_w,pad_h) then
-					sfx(12)
-					pill_v[i] = false
-				end
-			end
-		end
-		
-		checkexplosions()
 		
 		-- this is where we check
 		--- if the ball hits the edges
@@ -177,14 +178,75 @@ function update_game()
 				serveball()
 			end
 		end
-	end	
+		
+	end -- end of sticky if
+	
+	-- move pills
+	-- check pill collision
+	for i=1,#pill_x do
+		if pill_v[i] then
+			pill_y[i]+=0.7
+			if pill_y[i] > 128 then
+				pill_v[i] = false
+			end
+			-- 8x6 is current sprite size
+			if box_box(pill_x[i],pill_y[i],8,6,pad_x,pad_y,pad_w,pad_h) then
+				pill_v[i] = false
+				sfx(12)
+				powerupget(pill_t[i])
+			end
+		end
+	end
+
+	
+	checkexplosions()
+	
+	if powerup!=0 then
+		powerup_t-=1
+		if powerup_t<=0 then
+			powerup=0
+		end 
+	end
+end
+
+function powerupget(_p)
+	if _p==1 then
+		-- slow down
+		powerup=1
+		powerup_t=0
+	elseif _p==2 then
+		-- life
+		powerup=2
+		powerup_t=0
+		lives+=1
+	elseif _p==3 then
+	 -- catch
+		powerup=3
+		powerup_t=900 -- frames/10 seconds
+	elseif _p==4 then
+		-- expand
+		powerup=4
+		powerup_t=900
+	elseif _p==5 then
+		-- reduce
+		powerup=5
+		powerup_t=900
+	elseif _p==6 then
+		-- megaball
+		powerup=6
+		powerup_t=0
+	elseif _p==7 then
+		-- multiball
+		powerup=7
+		powerup_t=0
+	end
 end
 
 function hitbrick(_i,_combo)
 	if brick_t[_i] == "b" then
 		brick_v[_i]=false
 		if _combo then
-			score+=10*multiplier
+			score+=10*multiplier*pointsmult
 			multiplier+=1
 		end
 		if multiplier>5 then
@@ -203,7 +265,7 @@ function hitbrick(_i,_combo)
 		-- todo drop powerup and sfx
 		sfx(7)
 		if _combo then
-			score+=multiplier
+			score+=multiplier*pointsmult
 			multiplier+=1
 		end
 		brick_v[_i]=false
@@ -213,7 +275,7 @@ function hitbrick(_i,_combo)
 		sfx(11)
 		brick_t[_i]="zz"
 		if _combo then
-			score+=multiplier
+			score+=multiplier*pointsmult
 			multiplier+=1
 		end
 	end
@@ -371,7 +433,8 @@ function startgame()
 	pad_x=52
 	pad_y=120
 	pad_dx=0
-	pad_w=24
+	pad_wo=24 -- constant original pad width
+	pad_w=24 -- current pad width
 	pad_h=3
 	
 	brick_x={}
@@ -389,8 +452,14 @@ function startgame()
 	lives=3
 	score=0
 	multiplier=1
+	pointsmult=1
 	
 	sticky=true
+	sticky_x=flr(pad_w/2)
+
+	-- reset powerups
+	powerup=0
+	powerup_t=0
 	
 end
 	
@@ -504,9 +573,16 @@ function serveball()
 	ball_dx=1
 	ball_dy=-1
 	ball_ang=1
+	pointsmult=1
 	
 	resetpills()
+	
 	sticky=true
+	sticky_x=flr(pad_w/2)
+	
+	-- reset powerups
+	powerup=0
+	powerup_t=0
 end
 	
 function setang(ang)
@@ -555,8 +631,13 @@ function move_paddle()
 			ball_dx=1
 		end
 	end
+	-- launch ball with x
 	if sticky and btnp(5) then
 		sticky=false
+		-- check if ball in bounds when launching
+		if ball_x < 0 and ball_x < 127 then
+			ball_x = mid(0,ball_x,127)
+		end
 	end
 	-- deceleration
 	if not(buttpress) then
