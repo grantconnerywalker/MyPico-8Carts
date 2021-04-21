@@ -3,12 +3,6 @@ version 29
 __lua__
 // goals
 // 5a. powerups
---     -- speeddown
---     -- speedup (plus score up?)
---     -- 1up
---     -- sticky
---     -- expand
---     -- reduce (plus score up?)
 --     -- megaball
 --     -- multiball
 // 6. juiciness (particles/shake)
@@ -25,7 +19,7 @@ function _init()
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
 	--levels[1]="////x4b/s9s"
-	levels[1]="b9b/p9p"
+	levels[1]="i9b/p9p"
 	
 		--debug
 	debug1=""
@@ -80,8 +74,14 @@ function update_game()
 		ball_x=pad_x+sticky_x
 		ball_y=pad_y-ball_r-1
 	else
-		nextx=ball_x+ball_dx
-		nexty=ball_y+ball_dy
+		--regular ball physics
+		if powerup==1 then
+			nextx=ball_x+(ball_dx/2)
+			nexty=ball_y+(ball_dy/2)
+		else
+			nextx=ball_x+ball_dx
+			nexty=ball_y+ball_dy
+		end
 		
 		-- check if ball hit pad	
 		if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
@@ -137,10 +137,13 @@ function update_game()
 			if brick_v[i] and ball_box(nextx,nexty,brick_x[i],brick_y[i],brick_w,brick_h) then
 				-- find out which direction to deflect
 				if not(brickhit) then
-					if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,brick_x[i],brick_y[i],brick_w,brick_h) then
-						ball_dx = -ball_dx
-					else
-						ball_dy = -ball_dy
+					if (powerup != 6) 
+					or (powerup == 6 and brick_t[i]=="i") then 
+						if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,brick_x[i],brick_y[i],brick_w,brick_h) then
+							ball_dx = -ball_dx
+						else
+							ball_dy = -ball_dy
+						end
 					end
 				end
 				brickhit=true
@@ -213,7 +216,7 @@ function powerupget(_p)
 	if _p==1 then
 		-- slow down
 		powerup=1
-		powerup_t=0
+		powerup_t=900
 	elseif _p==2 then
 		-- life
 		powerup=2
@@ -234,11 +237,11 @@ function powerupget(_p)
 	elseif _p==6 then
 		-- megaball
 		powerup=6
-		powerup_t=0
+		powerup_t=900
 	elseif _p==7 then
 		-- multiball
 		powerup=7
-		powerup_t=0
+		powerup_t=900
 	end
 end
 
@@ -259,8 +262,23 @@ function hitbrick(_i,_combo)
 	elseif brick_t[_i] == "i" then
 		sfx(9)
 	elseif brick_t[_i] == "h" then
-		sfx(10)
-		brick_t[_i] = "b"
+		if powerup==6 then
+			brick_v[_i]=false
+			if _combo then
+				score+=10*multiplier*pointsmult
+				multiplier+=1
+				if multiplier>5 then
+					sfx(6)
+				elseif multiplier>15 then
+					sfx(7)
+				else
+					sfx(5)
+				end
+			end
+		else
+			sfx(10)
+			brick_t[_i] = "b"
+		end
 	elseif brick_t[_i] == "p" then
 		-- todo drop powerup and sfx
 		sfx(7)
@@ -284,7 +302,8 @@ end
 function spawnpill(_x,_y)
 	-- 7 because 7 powerups
 	local _t =	flr(rnd(7)+1)
-
+ _t = 6 -- for testing only
+ 
 	add(pill_x,_x)
 	add(pill_y,_y)
 	add(pill_v,true)
