@@ -2,9 +2,6 @@ pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
 // goals
-// 5a. powerups
---     -- megaball
---     -- multiball
 // 6. juiciness (particles/shake)
 // 8. high score
 
@@ -69,35 +66,69 @@ function update_game()
 
 	move_paddle()
 
+	-- big ball loop
+	for i=#ball,1,-1 do
+		updateball(ball[i])
+	end
+	
+	-- move pills
+	-- check pill collision
+	for i=#pills,1,-1 do
+		pills[i].y+=0.7
+		if pills[i].y > 128 then
+			-- remove pill
+			del(pills,pills[i])
+		elseif box_box(pills[i].x,pills[i].y,8,6,pad_x,pad_y,pad_w,pad_h) then
+			powerupget(pills[i].t)
+			-- remove pill
+			del(pills,pills[i])
+			sfx(12)
+		end
+	end
+
+	
+	checkexplosions()
+	
+	if powerup!=0 then
+		powerup_t-=1
+		if powerup_t<=0 then
+			powerup=0
+		end 
+	end
+end
+
+function updateball(b)
+	
 	if sticky then
 		--ball_x=pad_x+flr(pad_w/2)
-		ball_x=pad_x+sticky_x
-		ball_y=pad_y-ball_r-1
+		-- only sticky for first ball for now
+		ball[1].x=pad_x+sticky_x
+		ball[1].y=pad_y-ball_r-1
 	else
 		--regular ball physics
 		if powerup==1 then
-			nextx=ball_x+(ball_dx/2)
-			nexty=ball_y+(ball_dy/2)
+			nextx=b.x+(b.dx/2)
+			nexty=b.y+(b.dy/2)
 		else
-			nextx=ball_x+ball_dx
-			nexty=ball_y+ball_dy
+			nextx=b.x+b.dx
+			nexty=b.y+b.dy
 		end
 		
 		-- check if ball hit pad	
 		if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
 			-- find out which direction to deflect
-			if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,pad_x,pad_y,pad_w,pad_h) then
+			if deflx_ball_box(b.x,b.y,b.dx,b.dy,pad_x,pad_y,pad_w,pad_h) then
 				-- ball hit paddle on the side
-				ball_dx = -ball_dx
-				if ball_x < pad_x+pad_w/2 then
+				b.dx = -b.dx
+				if b.x < pad_x+pad_w/2 then
 					nextx=pad_x-ball_r
 				else
 					nextx=pad_x+pad_w+ball_r
 				end
 			else
 				-- ball hit paddle on the top/bottom
-				ball_dy = -ball_dy
-				if ball_y > pad_y then
+				b.dy = -b.dy
+				if b.y > pad_y then
 					-- bottom
 					nexty=pad_y+pad_h+ball_r
 				else
@@ -105,15 +136,15 @@ function update_game()
 					nexty=pad_y-ball_r
 					if abs(pad_dx) > 2 then
 						-- change angle
-						if sign(pad_dx)==sign(ball_dx) then
+						if sign(pad_dx)==sign(b.dx) then
 							-- flatten angle
-							setang(mid(0,ball_ang-1,2))
+							setang(b,mid(0,b.ang-1,2))
 						else
 							-- raise angle
-							if ball_ang==2 then
-								ball_dx=-ball_dx
+							if b.ang==2 then
+								b.dx=-b.dx
 							else
-								setang(mid(0,ball_ang+1,2))
+								setang(b,mid(0,b.ang+1,2))
 							end
 						end
 					end
@@ -125,24 +156,24 @@ function update_game()
 			sfx(1)
 			
 			--catch powerup
-			if powerup==3 and ball_dy<0 then
+			if powerup==3 and b.dy<0 then
 				sticky=true	
-				sticky_x=ball_x-pad_x
+				sticky_x=ball[1].x-pad_x
 			end
 		end
 		
 		-- check if ball hit brick
 		brickhit=false
-		for i=1,#brick_x do
-			if brick_v[i] and ball_box(nextx,nexty,brick_x[i],brick_y[i],brick_w,brick_h) then
+		for i=1,#bricks do
+			if bricks[i].v and ball_box(nextx,nexty,bricks[i].x,bricks[i].y,brick_w,brick_h) then
 				-- find out which direction to deflect
 				if not(brickhit) then
 					if (powerup != 6) 
-					or (powerup == 6 and brick_t[i]=="i") then 
-						if deflx_ball_box(ball_x,ball_y,ball_dx,ball_dy,brick_x[i],brick_y[i],brick_w,brick_h) then
-							ball_dx = -ball_dx
+					or (powerup == 6 and bricks[i].t=="i") then 
+						if deflx_ball_box(b.x,b.y,b.dx,b.dy,bricks[i].x,bricks[i].y,brick_w,brick_h) then
+							b.dx = -b.dx
 						else
-							ball_dy = -ball_dy
+							b.dy = -b.dy
 						end
 					end
 				end
@@ -158,19 +189,19 @@ function update_game()
 		end
 		
 		-- move ball
-		ball_x=nextx
-		ball_y=nexty
+		b.x=nextx
+		b.y=nexty
 		
 		-- this is where we check
 		--- if the ball hits the edges
 		if nextx > 127 or nextx < 0 then
 			nextx=mid(0,nextx,127)
-			ball_dx=-ball_dx
+			b.dx=-b.dx
 			sfx(0)
 		end
 		if nexty < (banner+2) then
 			nexty=mid(0,nexty,127)
-			ball_dy=-ball_dy
+			b.dy=-b.dy
 			sfx(0)
 		elseif nexty > 129 then
 			lives-=1
@@ -183,33 +214,6 @@ function update_game()
 		end
 		
 	end -- end of sticky if
-	
-	-- move pills
-	-- check pill collision
-	for i=1,#pill_x do
-		if pill_v[i] then
-			pill_y[i]+=0.7
-			if pill_y[i] > 128 then
-				pill_v[i] = false
-			end
-			-- 8x6 is current sprite size
-			if box_box(pill_x[i],pill_y[i],8,6,pad_x,pad_y,pad_w,pad_h) then
-				pill_v[i] = false
-				sfx(12)
-				powerupget(pill_t[i])
-			end
-		end
-	end
-
-	
-	checkexplosions()
-	
-	if powerup!=0 then
-		powerup_t-=1
-		if powerup_t<=0 then
-			powerup=0
-		end 
-	end
 end
 
 function powerupget(_p)
@@ -245,9 +249,10 @@ function powerupget(_p)
 	end
 end
 
+-- todo fix indestructible b
 function hitbrick(_i,_combo)
-	if brick_t[_i] == "b" then
-		brick_v[_i]=false
+	if bricks[_i].t == "b" then
+		bricks[_i].v=false
 		if _combo then
 			score+=10*multiplier*pointsmult
 			multiplier+=1
@@ -259,9 +264,9 @@ function hitbrick(_i,_combo)
 		else
 			sfx(5)
 		end
-	elseif brick_t[_i] == "i" then
+	elseif bricks[_i].t == "i" then
 		sfx(9)
-	elseif brick_t[_i] == "h" then
+	elseif bricks[_i].t == "h" then
 		if powerup==6 then
 			brick_v[_i]=false
 			if _combo then
@@ -277,21 +282,20 @@ function hitbrick(_i,_combo)
 			end
 		else
 			sfx(10)
-			brick_t[_i] = "b"
+			bricks[_i].t = "b"
 		end
-	elseif brick_t[_i] == "p" then
-		-- todo drop powerup and sfx
+	elseif bricks[_i].t == "p" then
 		sfx(7)
 		if _combo then
 			score+=multiplier*pointsmult
 			multiplier+=1
 		end
-		brick_v[_i]=false
-		spawnpill(brick_x[_i],brick_y[_i])
-	elseif brick_t[_i] == "s" then
+		bricks[_i].v=false
+		spawnpill(bricks[_i].x,bricks[_i].y)
+	elseif bricks[_i].t == "s" then
 		--splode sfx (pink?)
 		sfx(11)
-		brick_t[_i]="zz"
+		bricks[_i].t="zz"
 		if _combo then
 			score+=multiplier*pointsmult
 			multiplier+=1
@@ -301,41 +305,44 @@ end
 
 function spawnpill(_x,_y)
 	-- 7 because 7 powerups
-	local _t =	flr(rnd(7)+1)
- _t = 6 -- for testing only
+	local _t
+	local _pill
+	_t =	flr(rnd(7)+1)
+ -- _t = 6 -- for testing only
  
-	add(pill_x,_x)
-	add(pill_y,_y)
-	add(pill_v,true)
-	add(pill_t,_t)
+ _pill={}
+ _pill.x=_x
+ _pill.y=_y
+ _pill.t=_t
+ add(pills,_pill)
 end
 
 function checkexplosions()
-	for i=1,#brick_x do
-		if brick_t[i] == "zz" then
-			brick_t[i] = "z"
+	for i=1,#bricks do
+		if bricks[i].t == "zz" then
+			bricks[i].t = "z"
 		end
 	end
 
-	for i=1,#brick_x do
-		if brick_t[i] == "z" then
+	for i=1,#bricks do
+		if bricks[i].t == "z" then
 			explodebrick(i)
 		end
 	end
 	
-	for i=1,#brick_x do
-		if brick_t[i] == "zz" then
-			brick_t[i] = "z"
+	for i=1,#bricks do
+		if bricks[i].t == "zz" then
+			bricks[i].t = "z"
 		end
 	end
 end
 
 function explodebrick(_i)
-	brick_v[_i]=false
-	for j=1,#brick_x do
-		if j!=_i and brick_v[j] 
-		and abs(brick_x[j]-brick_x[_i]) <= (brick_w+2)
-		and abs(brick_y[j]-brick_y[_i]) <= (brick_h+2)
+	bricks[_i].v=false
+	for j=1,#brick do
+		if j!=_i and bricks[j].v 
+		and abs(bricks[j].x-bricks[_i].x) <= (brick_w+2)
+		and abs(bricks[j].y-bricks[_i].y) <= (brick_h+2)
 		then
 			hitbrick(j, false)
 		end
@@ -366,44 +373,44 @@ function draw_game()
 	
 	-- draw ball and paddle
 	print(message, 0, 0, 8)
-	circfill(ball_x,ball_y,ball_r,ball_color)
+	for i=1,#ball do
+			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
+	end
 	if sticky then
 		-- serve preview, not sure why need - on the y's
-		line(ball_x+ball_dx*4,ball_y-ball_dy*4,ball_x+ball_dx*6,ball_y-ball_dy*6,10)
+		line(ball[1].x+ball[1].dx*4,ball[1].y-ball[1].dy*4,ball[1].x+ball[1].dx*6,ball[1].y-ball[1].dy*6,10)
 	end
 	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
 	
 	-- draw bricks
-	for i=1,#brick_x do
-		if brick_v[i] then
-			if brick_t[i] == "b" then
+	for i=1,#bricks do
+		if bricks[i].v then
+			if bricks[i].t == "b" then
 				brickcol = 14
-			elseif brick_t[i] == "i" then
+			elseif bricks[i].t == "i" then
 				brickcol = 15
-			elseif brick_t[i] == "h" then
+			elseif bricks[i].t == "h" then
 				brickcol = 6
-			elseif brick_t[i] == "s" then
+			elseif bricks[i].t == "s" then
 				brickcol = 8
-			elseif brick_t[i] == "p" then
+			elseif bricks[i].t == "p" then
 				brickcol = 12
 			--this type for debug only
-			elseif brick_t[i] == "z" or brick_t[i] == "zz" then
+			elseif bricks[i].t == "z" or bricks[i].t == "zz" then
 				brickcol = 3
 			end
-			rectfill(brick_x[i],brick_y[i],brick_x[i]+brick_w,brick_y[i]+brick_h,brickcol)
+			rectfill(bricks[i].x,bricks[i].y,bricks[i].x+brick_w,bricks[i].y+brick_h,brickcol)
 		end
 	end
 	
 	-- draw pills
-	for i=1,#pill_x do
-		if pill_v[i] then
-			if pill_t[i]==5 then
-				palt(0,false)
-				palt(15,true)
-			end
-			spr(pill_t[i],pill_x[i],pill_y[i])
-			palt()
+	for i=1,#pills do
+		if pills[i].t==5 then
+			palt(0,false)
+			palt(15,true)
 		end
+		spr(pills[i].t,pills[i].x,pills[i].y)
+		palt()
 	end
 	
 	rectfill(0,0,128,banner,0)
@@ -440,15 +447,6 @@ function startgame()
 	
 	banner=6 -- banner height
 	
-	ball_x=1 --position
-	ball_y=64
-	ball_dx=1 -- speed
-	ball_dy=1
-	ball_r=2 --radius
-	ball_dr=0.5
-	ball_color=10 --color
-	ball_ang=1
-	
 	pad_x=52
 	pad_y=120
 	pad_dx=0
@@ -456,9 +454,18 @@ function startgame()
 	pad_w=24 -- current pad width
 	pad_h=3
 	
-	brick_x={}
-	brick_y={}
-	brick_v={}
+	-- reset ball
+	--ball_x=1 --position
+	--ball_y=64
+	--ball_dx=1 -- speed
+	--ball_dy=1
+	ball_r=2 --radius
+	ball_dr=0.5
+	ball_color=10 --color
+	ball_ang=1
+	ball={}
+	ball[1] = newball()
+	
 	brick_w=9
 	brick_h=4
 	
@@ -506,10 +513,7 @@ end
 	
 function buildbricks(lvl)
 	local i
-	brick_x={}
-	brick_y={}
-	brick_v={}
-	brick_t={}
+	bricks={}
 	
 	j=0
 	-- b = normal
@@ -552,17 +556,16 @@ function buildbricks(lvl)
 end
 
 function resetpills()
-	pill_x={}
-	pill_y={}
-	pill_v={}
-	pill_t={}
+	pills={}
 end
 	
 function addbrick(_i,_t)
-	add(brick_x,4+((_i-1)%11)*(brick_w+2))
-	add(brick_y,20+flr((_i-1)/11)*(brick_h+2))
-	add(brick_v,true)
-	add(brick_t,_t)
+	local _b = {}
+	_b.x=4+((_i-1)%11)*(brick_w+2)
+	_b.y=20+flr((_i-1)/11)*(brick_h+2)
+	_b.v=true
+	_b.t=_t
+	add(bricks,_b)
 end
 	
 function gameover()
@@ -576,10 +579,10 @@ function levelover()
 end
 
 function levelfinished()
-	if #brick_v == 0 then return true end
+	if #bricks == 0 then return true end
 	
-	for i=1,#brick_v do
-		if brick_v[i] == true and brick_t[i] != "i" then
+	for i=1,#bricks do
+		if bricks[i].v == true and bricks[i].t != "i" then
 			return false
 		end
 	end
@@ -587,11 +590,14 @@ function levelfinished()
 end
 	
 function serveball()
-	ball_x=pad_x+flr(pad_w/2)
-	ball_y=pad_y-ball_r-pad_h
-	ball_dx=1
-	ball_dy=-1
-	ball_ang=1
+	ball={}
+	ball[1] = newball()
+	
+	ball[1].x=pad_x+flr(pad_w/2)
+	ball[1].y=pad_y-ball_r-pad_h
+	ball[1].dx=1
+	ball[1].dy=-1
+	ball[1].ang=1
 	pointsmult=1
 	
 	resetpills()
@@ -604,19 +610,29 @@ function serveball()
 	powerup_t=0
 end
 	
-function setang(ang)
+function newball()
+	b={}
+	b.x=pad_x+flr(pad_w/2)
+	b.y=pad_y-ball_r-pad_h
+	b.dx=1
+	b.dy=-1
+	b.ang=1
+	return b
+end
+	
+function setang(bl, ang)
 	--0.5
 	--1.30 angle transform values
-	ball_ang=ang
+	bl.ang=ang
 	if ang==2 then
-		ball_dx=0.5*sign(ball_dx)
-		ball_dy=1.3*sign(ball_dy)
+		bl.dx=0.5*sign(bl.dx)
+		bl.dy=1.3*sign(bl.dy)
 	elseif ang==0 then
-		ball_dx=1.3*sign(ball_dx)
-		ball_dy=0.5*sign(ball_dy)	
+		bl.dx=1.3*sign(bl.dx)
+		bl.dy=0.5*sign(bl.dy)	
 	else
-		ball_dx=1*sign(ball_dx)
-		ball_dy=1*sign(ball_dy)
+		bl.dx=1*sign(bl.dx)
+		bl.dy=1*sign(bl.dy)
 	end
 end
 	
@@ -639,7 +655,8 @@ function move_paddle()
 		pad_dx=-pad_speed
 		buttpress=true
 		if sticky then
-			ball_dx=-1
+			ball[1].dx=-1
+			ball[1].dy=-1
 		end
 	end
 	if btn(1) then
@@ -647,15 +664,16 @@ function move_paddle()
 		pad_dx=pad_speed
 		buttpress=true
 		if sticky then
-			ball_dx=1
+			ball[1].dx=1
+			ball[1].dy=-1
 		end
 	end
 	-- launch ball with x
 	if sticky and btnp(5) then
 		sticky=false
 		-- check if ball in bounds when launching
-		if ball_x < 0 and ball_x < 127 then
-			ball_x = mid(0,ball_x,127)
+		if ball[1].x < 0 and ball[1].x < 127 then
+			ball[1].x = mid(0,ball[1].x,127)
 		end
 	end
 	-- deceleration
