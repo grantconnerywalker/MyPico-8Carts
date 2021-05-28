@@ -204,12 +204,16 @@ function updateball(b)
 			b.dy=-b.dy
 			sfx(0)
 		elseif nexty > 129 then
-			lives-=1
-			if lives < 0 then
-				gameover()
+			if #ball > 1 then
+				del(ball,b)
 			else
-				sfx(3)
-				serveball()
+				lives-=1
+				if lives < 0 then
+					gameover()
+				else
+					sfx(3)
+					serveball()
+				end
 			end
 		end
 		
@@ -246,6 +250,7 @@ function powerupget(_p)
 		-- multiball
 		powerup=7
 		powerup_t=900
+		multiball()
 	end
 end
 
@@ -308,7 +313,7 @@ function spawnpill(_x,_y)
 	local _t
 	local _pill
 	_t =	flr(rnd(7)+1)
- -- _t = 6 -- for testing only
+ _t = 7 -- for testing only
  
  _pill={}
  _pill.x=_x
@@ -619,6 +624,16 @@ function newball()
 	b.ang=1
 	return b
 end
+
+function copyball(ob)
+	b={}
+	b.x=ob.x
+	b.y=ob.y
+	b.dx=ob.dx
+	b.dy=ob.dy
+	b.ang=ob.ang
+	return b
+end	
 	
 function setang(bl, ang)
 	--0.5
@@ -636,6 +651,25 @@ function setang(bl, ang)
 	end
 end
 	
+function multiball()
+	ball2 = copyball(ball[1])	
+	ball3 = copyball(ball2)
+	
+	if ball[1].ang == 0 then
+		setang(ball2, 1)
+		setang(ball3, 2)
+	elseif ball[1].ang == 1 then
+		setang(ball2, 0)
+		setang(ball3, 2)
+	else
+		setang(ball2, 0)
+		setang(ball3, 1)
+	end
+	
+	ball[#ball+1] = ball2
+	ball[#ball+1] = ball3
+end
+
 function sign(n)
 	if n<0 then
 		return -1
