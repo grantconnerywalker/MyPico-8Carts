@@ -99,11 +99,11 @@ end
 
 function updateball(b)
 	
-	if sticky then
+	if b.stuck then
 		--ball_x=pad_x+flr(pad_w/2)
 		-- only sticky for first ball for now
-		ball[1].x=pad_x+sticky_x
-		ball[1].y=pad_y-ball_r-1
+	 b.x=pad_x+sticky_x
+		b.y=pad_y-ball_r-1
 	else
 		--regular ball physics
 		if powerup==1 then
@@ -156,9 +156,11 @@ function updateball(b)
 			sfx(1)
 			
 			--catch powerup
-			if powerup==3 and b.dy<0 then
-				sticky=true	
-				sticky_x=ball[1].x-pad_x
+			if sticky and b.dy<0 then	
+				releasestuck()
+				sticky = false
+				b.stuck = true
+				sticky_x = b.x-pad_x
 			end
 		end
 		
@@ -220,6 +222,23 @@ function updateball(b)
 	end -- end of sticky if
 end
 
+function releasestuck()
+	for i=1,#ball do
+		if ball[i].stuck then
+			ball[i].x = mid(0,ball[i].x,127)
+			ball[i].stuck = false
+		end
+	end	
+end
+
+function pointstuck(sign)
+	for i=1,#ball do
+		if ball[i].stuck then
+			ball[i].dx = abs(ball[i].dx)*sign
+		end
+	end	
+end
+
 function powerupget(_p)
 	if _p==1 then
 		-- slow down
@@ -232,8 +251,18 @@ function powerupget(_p)
 		lives+=1
 	elseif _p==3 then
 	 -- catch
-		powerup=3
-		powerup_t=900 -- frames/10 seconds
+	 -- check if there are stuck balls
+	 hasstuck=false
+	 for i=1,#ball do
+	 	if ball[i].stuck then
+	 		hasstuck=true
+	 	end
+	 end
+	 if hasstuck==false then
+	 	sticky=true
+	 end
+		--powerup=3
+		--powerup_t=900 -- frames/10 seconds
 	elseif _p==4 then
 		-- expand
 		powerup=4
@@ -248,8 +277,9 @@ function powerupget(_p)
 		powerup_t=900
 	elseif _p==7 then
 		-- multiball
-		powerup=7
-		powerup_t=900
+		--powerup=7
+		--powerup_t=900
+		releasestuck()
 		multiball()
 	end
 end
@@ -312,8 +342,15 @@ function spawnpill(_x,_y)
 	-- 7 because 7 powerups
 	local _t
 	local _pill
-	_t =	flr(rnd(7)+1)
- _t = 7 -- for testing only
+	--_t =	flr(rnd(7)+1)
+	-- for testing only
+	_t =	flr(rnd(2))
+	if _t == 0 then
+		_t = 3
+	else
+	 _t = 7
+	end
+ -- for testing only
  
  _pill={}
  _pill.x=_x
@@ -380,11 +417,11 @@ function draw_game()
 	print(message, 0, 0, 8)
 	for i=1,#ball do
 			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
+			if ball[i].stuck then
+				line(ball[i].x+ball[i].dx*4,ball[i].y-ball[i].dy*4,ball[i].x+ball[i].dx*6,ball[i].y+ball[i].dy*6,10)
+			end
 	end
-	if sticky then
-		-- serve preview, not sure why need - on the y's
-		line(ball[1].x+ball[1].dx*4,ball[1].y-ball[1].dy*4,ball[1].x+ball[1].dx*6,ball[1].y-ball[1].dy*6,10)
-	end
+
 	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
 	
 	-- draw bricks
@@ -485,12 +522,16 @@ function startgame()
 	multiplier=1
 	pointsmult=1
 	
-	sticky=true
+	sticky=false
 	sticky_x=flr(pad_w/2)
 
 	-- reset powerups
 	powerup=0
 	powerup_t=0
+	
+	-- check where this is called
+	-- remove if necessary if it works in here
+	serveball()
 	
 end
 	
@@ -510,7 +551,7 @@ function nextlevel()
 	level = levels[levelnum]
 	buildbricks(level)
 	
-	sticky=true
+	sticky=false
 	
 	serveball()
 end
@@ -603,11 +644,11 @@ function serveball()
 	ball[1].dx=1
 	ball[1].dy=-1
 	ball[1].ang=1
+	ball[1].stuck=true
 	pointsmult=1
 	
 	resetpills()
 	
-	sticky=true
 	sticky_x=flr(pad_w/2)
 	
 	-- reset powerups
@@ -616,22 +657,24 @@ function serveball()
 end
 	
 function newball()
-	b={}
-	b.x=pad_x+flr(pad_w/2)
-	b.y=pad_y-ball_r-pad_h
-	b.dx=1
-	b.dy=-1
-	b.ang=1
+	b = {}
+	b.x = pad_x+flr(pad_w/2)
+	b.y = pad_y-ball_r-pad_h
+	b.dx = 1
+	b.dy = -1
+	b.ang = 1
+	b.stuck = false
 	return b
 end
 
 function copyball(ob)
-	b={}
-	b.x=ob.x
-	b.y=ob.y
-	b.dx=ob.dx
-	b.dy=ob.dy
-	b.ang=ob.ang
+	b = {}
+	b.x = ob.x
+	b.y = ob.y
+	b.dx = ob.dx
+	b.dy = ob.dy
+	b.ang = ob.ang
+	b.stuck = ob.stuck
 	return b
 end	
 	
@@ -688,27 +731,17 @@ function move_paddle()
 		-- left
 		pad_dx=-pad_speed
 		buttpress=true
-		if sticky then
-			ball[1].dx=-1
-			ball[1].dy=-1
-		end
+		pointstuck(-1)
 	end
 	if btn(1) then
 		-- right
 		pad_dx=pad_speed
 		buttpress=true
-		if sticky then
-			ball[1].dx=1
-			ball[1].dy=-1
-		end
+		pointstuck(1)
 	end
 	-- launch ball with x
-	if sticky and btnp(5) then
-		sticky=false
-		-- check if ball in bounds when launching
-		if ball[1].x < 0 and ball[1].x < 127 then
-			ball[1].x = mid(0,ball[1].x,127)
-		end
+	if btnp(5) then
+		releasestuck()
 	end
 	-- deceleration
 	if not(buttpress) then
