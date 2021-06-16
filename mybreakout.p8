@@ -3,6 +3,8 @@ version 29
 __lua__
 // goals
 // 6. juiciness (particles/shake)
+// 	screen shake
+//  text blinking
 // 8. high score
 
 function _init()
@@ -15,8 +17,10 @@ function _init()
 	levels={}
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
-	--levels[1]="////x4b/s9s"
-	levels[1]="i9b/p9p"
+	levels[1]="i9b//x4b//sbsbsbsbsbsb"
+	--levels[1]="i9b/p9p"
+
+	shake=0
 	
 		--debug
 	debug1=""
@@ -35,6 +39,7 @@ function _update60()
 end
 
 function _draw()
+	doshake()
 	if mode=="game" then
 		draw_game()
 	elseif mode=="start" then
@@ -52,12 +57,11 @@ end
 function update_game()
 	local nextx,nexty,brickhit
 
-	-- check if pad should grow
-	if powerup==4 then
+	-- check if pad should grow/shrink
+	if timer_expand > 0 then
 		-- todo gradual growth
 		pad_w=flr(pad_wo*1.5)
-	elseif powerup==5 then
-		-- check if pad should shrink
+	elseif timer_reduce > 0 then
 		pad_w=flr(pad_wo/2)
 		pointsmult=2
 	else
@@ -85,16 +89,22 @@ function update_game()
 			sfx(12)
 		end
 	end
-
 	
 	checkexplosions()
-	
-	if powerup!=0 then
-		powerup_t-=1
-		if powerup_t<=0 then
-			powerup=0
-		end 
+
+	-- powerup timers
+	if timer_slow > 0 then
+		timer_slow-=1
 	end
+	if timer_expand > 0 then
+		timer_expand-=1
+	end
+	if timer_reduce > 0 then
+		timer_reduce-=1
+	end
+	if timer_mega > 0 then
+		timer_mega-=1
+	end	
 end
 
 function updateball(b)
@@ -106,7 +116,7 @@ function updateball(b)
 		b.y=pad_y-ball_r-1
 	else
 		--regular ball physics
-		if powerup==1 then
+		if timer_slow > 0 then
 			nextx=b.x+(b.dx/2)
 			nexty=b.y+(b.dy/2)
 		else
@@ -116,6 +126,7 @@ function updateball(b)
 		
 		-- check if ball hit pad	
 		if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
+			shake+=0.01
 			-- find out which direction to deflect
 			if deflx_ball_box(b.x,b.y,b.dx,b.dy,pad_x,pad_y,pad_w,pad_h) then
 				-- ball hit paddle on the side
@@ -170,8 +181,8 @@ function updateball(b)
 			if bricks[i].v and ball_box(nextx,nexty,bricks[i].x,bricks[i].y,brick_w,brick_h) then
 				-- find out which direction to deflect
 				if not(brickhit) then
-					if (powerup != 6) 
-					or (powerup == 6 and bricks[i].t=="i") then 
+					if (timer_mega <= 0) 
+					or (timer_mega > 0 and bricks[i].t=="i") then 
 						if deflx_ball_box(b.x,b.y,b.dx,b.dy,bricks[i].x,bricks[i].y,brick_w,brick_h) then
 							b.dx = -b.dx
 						else
@@ -206,14 +217,17 @@ function updateball(b)
 			b.dy=-b.dy
 			sfx(0)
 		elseif nexty > 129 then
+			-- ball is lost
+			sfx(3)
 			if #ball > 1 then
+				shake+=0.15
 				del(ball,b)
 			else
+				shake+=0.4
 				lives-=1
 				if lives < 0 then
 					gameover()
 				else
-					sfx(3)
 					serveball()
 				end
 			end
@@ -242,17 +256,14 @@ end
 function powerupget(_p)
 	if _p==1 then
 		-- slow down
-		powerup=1
-		powerup_t=900
+		timer_slow = 900
 	elseif _p==2 then
 		-- life
-		powerup=2
-		powerup_t=0
 		lives+=1
 	elseif _p==3 then
 	 -- catch
 	 -- check if there are stuck balls
-	 hasstuck=false
+	 local hasstuck=false
 	 for i=1,#ball do
 	 	if ball[i].stuck then
 	 		hasstuck=true
@@ -261,25 +272,19 @@ function powerupget(_p)
 	 if hasstuck==false then
 	 	sticky=true
 	 end
-		--powerup=3
-		--powerup_t=900 -- frames/10 seconds
 	elseif _p==4 then
 		-- expand
-		powerup=4
-		powerup_t=900
+		timer_expand = 900
+		timer_reduce = 0
 	elseif _p==5 then
 		-- reduce
-		powerup=5
-		powerup_t=900
+		timer_reduce = 900
+		timer_expand = 0
 	elseif _p==6 then
 		-- megaball
-		powerup=6
-		powerup_t=900
+		timer_mega=900
 	elseif _p==7 then
 		-- multiball
-		--powerup=7
-		--powerup_t=900
-		releasestuck()
 		multiball()
 	end
 end
@@ -302,7 +307,8 @@ function hitbrick(_i,_combo)
 	elseif bricks[_i].t == "i" then
 		sfx(9)
 	elseif bricks[_i].t == "h" then
-		if powerup==6 then
+		--if powerup==6 then
+		if timer_mega > 0 then
 			brick_v[_i]=false
 			if _combo then
 				score+=10*multiplier*pointsmult
@@ -342,14 +348,14 @@ function spawnpill(_x,_y)
 	-- 7 because 7 powerups
 	local _t
 	local _pill
-	--_t =	flr(rnd(7)+1)
+	_t =	flr(rnd(7)+1)
 	-- for testing only
-	_t =	flr(rnd(2))
-	if _t == 0 then
-		_t = 3
-	else
-	 _t = 7
-	end
+	--_t =	flr(rnd(2))
+	--if _t == 0 then
+		--_t = 3
+	--else
+	 --_t = 7
+	--end
  -- for testing only
  
  _pill={}
@@ -361,14 +367,18 @@ end
 
 function checkexplosions()
 	for i=1,#bricks do
-		if bricks[i].t == "zz" then
+		if bricks[i].t == "zz" and bricks[i].v then
 			bricks[i].t = "z"
 		end
 	end
 
 	for i=1,#bricks do
-		if bricks[i].t == "z" then
+		if bricks[i].t == "z" and bricks[i].v then
 			explodebrick(i)
+			shake+=0.4
+			if shake>1 then
+				shake=1
+			end
 		end
 	end
 	
@@ -381,14 +391,22 @@ end
 
 function explodebrick(_i)
 	bricks[_i].v=false
-	for j=1,#brick do
+	for j=1,#bricks do
 		if j!=_i and bricks[j].v 
 		and abs(bricks[j].x-bricks[_i].x) <= (brick_w+2)
 		and abs(bricks[j].y-bricks[_i].y) <= (brick_h+2)
 		then
 			hitbrick(j, false)
+			--shake+=0.4
+			--if shake>1 then
+				--shake = 1
+			--end
 		end
 	end
+	--shake+=0.4
+	--if shake>1 then
+		--shake = 1
+	--end
 end
 
 function update_start()
@@ -411,7 +429,9 @@ end
 
 function draw_game()
 	-- fill background
-	cls(1)
+	cls()
+	--cls(1)
+	rectfill(0,0,127,127,1)
 	
 	-- draw ball and paddle
 	print(message, 0, 0, 8)
@@ -524,10 +544,6 @@ function startgame()
 	
 	sticky=false
 	sticky_x=flr(pad_w/2)
-
-	-- reset powerups
-	powerup=0
-	powerup_t=0
 	
 	-- check where this is called
 	-- remove if necessary if it works in here
@@ -651,9 +667,11 @@ function serveball()
 	
 	sticky_x=flr(pad_w/2)
 	
-	-- reset powerups
-	powerup=0
-	powerup_t=0
+	-- powerup timers
+	timer_slow=0
+	timer_expand=0
+	timer_reduce=0
+	timer_mega=0
 end
 	
 function newball()
@@ -695,22 +713,27 @@ function setang(bl, ang)
 end
 	
 function multiball()
-	ball2 = copyball(ball[1])	
-	ball3 = copyball(ball2)
+ local	ballnum = flr(rnd(#ball))+1
+	local ogball = ball[ballnum]
+
+	ball2 = copyball(ogball)	
+ --	ball3 = copyball(ball2)
 	
-	if ball[1].ang == 0 then
-		setang(ball2, 1)
-		setang(ball3, 2)
-	elseif ball[1].ang == 1 then
-		setang(ball2, 0)
-		setang(ball3, 2)
+	if ogball.ang == 0 then
+		--setang(ball2, 1)
+		setang(ball2, 2)
+	elseif ogball.ang == 1 then
+		setang(ogball, 0)
+		setang(ball2, 2)
+		--setang(ball3, 2)
 	else
 		setang(ball2, 0)
-		setang(ball3, 1)
+		--setang(ball3, 1)
 	end
 	
+	ball2.stuck=false
 	ball[#ball+1] = ball2
-	ball[#ball+1] = ball3
+	--ball[#ball+1] = ball3
 end
 
 function sign(n)
@@ -798,6 +821,25 @@ function deflx_ball_box(bx,by,bdx,bdy,tx,ty,tw,th)
 		cx = tx + tw - bx
 		cy = ty - by
 		return cx < 0 and cy/cx >= slp
+	end
+end
+
+-----------------------------
+-------- juicy stuff --------
+-----------------------------
+function doshake()
+	-- -16 to +16
+	local shakex=16-rnd(32)
+	local shakey=16-rnd(32)
+	
+	shakex=shakex*shake
+	shakey=shakey*shake
+	
+	camera(shakex,shakey)
+	
+	shake*=0.95
+	if shake<0.05 then
+		shake=0
 	end
 end
 __gfx__
