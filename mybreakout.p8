@@ -1,6 +1,10 @@
 pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
+-----------------------------
+----------- main ------------
+-----------------------------
+
 // goals
 // 6. juiciness (particles/shake)
 // 	screen shake
@@ -22,11 +26,19 @@ function _init()
 
 	shake=0
 	
+	blink_g=7
+	blink_i=1
+	blink_f=0
+	blink_s=8
+	
+	startcountdown=-1
+	
 		--debug
 	debug1=""
 end
 
 function _update60()
+	doblink()
 	if mode=="game" then
 		update_game()
 	elseif mode=="start" then
@@ -410,8 +422,22 @@ function explodebrick(_i)
 end
 
 function update_start()
-	if btn(5) then
-		startgame()
+	if startcountdown < 0 then
+		if btn(5) then
+			startcountdown=80
+			sfx(13)
+			--startgame()
+		end
+	else
+		startcountdown-=1
+		doblink()
+		doblink()
+		doblink()
+		doblink()
+		if startcountdown<=0 then
+			startcountdown=-1
+			startgame()
+		end
 	end
 end
 
@@ -488,7 +514,7 @@ end
 function draw_start()
 	cls(1)
 	print("pico hero breakout",30,40,7)
-	print("press ❎ to start",32,80,11)
+	print("press ❎ to start",32,80,blink_g)
 end
 
 function draw_gameover()
@@ -823,7 +849,7 @@ function deflx_ball_box(bx,by,bdx,bdy,tx,ty,tw,th)
 		return cx < 0 and cy/cx >= slp
 	end
 end
-
+-->8
 -----------------------------
 -------- juicy stuff --------
 -----------------------------
@@ -840,6 +866,19 @@ function doshake()
 	shake*=0.95
 	if shake<0.05 then
 		shake=0
+	end
+end
+
+function doblink()
+	local g_seq={3,11,10,7}
+	blink_f+=1
+	if blink_f > blink_s then
+		blink_f = 0
+		blink_i+=1
+		if blink_i > #g_seq then
+			blink_i=1
+		end
+		blink_g=g_seq[blink_i]
 	end
 end
 __gfx__
@@ -872,3 +911,4 @@ __sfx__
 000200001c7501c7501d7501d75000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00020000166501a6501d6501f65020650206501f6501c6501965016650126500e65015000100000f0002d6002c6002b6002a600286002560023600206001e6001c60019600176001560013600106000d6000a600
 00010000350502e050210501a050170503205034050310501d0501805017050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000400000405013050050501d05007050240600c0602c050120403104017030350301c030380301f0303b030240303e0202400026000000000000000000000000000000000000000000000000000000000000000
