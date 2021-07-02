@@ -28,226 +28,25 @@ function _init()
 	
 	blink_g=7
 	blink_i=1
+	
+	blink_w=7
+	blink_w_i=1
+	
 	blink_f=0
 	blink_s=8
 	
 	startcountdown=-1
+	govercountdown=-1
+	
+	fadeperc=0
 	
 		--debug
 	debug1=""
 end
 
-function _update60()
-	doblink()
-	if mode=="game" then
-		update_game()
-	elseif mode=="start" then
-		update_start()
-	elseif mode=="gameover" then
-		update_gameover()
-	elseif mode=="levelover" then
-		update_levelover()
-	end
-end
-
-function _draw()
-	doshake()
-	if mode=="game" then
-		draw_game()
-	elseif mode=="start" then
-		draw_start()
-	elseif mode=="gameover" then
-		draw_gameover()
-	elseif mode=="levelover" then
-		draw_levelover()
-	end
-end
-
 --------------------------------
 ---- user defined functions ----
 --------------------------------
-function update_game()
-	local nextx,nexty,brickhit
-
-	-- check if pad should grow/shrink
-	if timer_expand > 0 then
-		-- todo gradual growth
-		pad_w=flr(pad_wo*1.5)
-	elseif timer_reduce > 0 then
-		pad_w=flr(pad_wo/2)
-		pointsmult=2
-	else
-		pad_w=pad_wo
-	end
-
-	move_paddle()
-
-	-- big ball loop
-	for i=#ball,1,-1 do
-		updateball(ball[i])
-	end
-	
-	-- move pills
-	-- check pill collision
-	for i=#pills,1,-1 do
-		pills[i].y+=0.7
-		if pills[i].y > 128 then
-			-- remove pill
-			del(pills,pills[i])
-		elseif box_box(pills[i].x,pills[i].y,8,6,pad_x,pad_y,pad_w,pad_h) then
-			powerupget(pills[i].t)
-			-- remove pill
-			del(pills,pills[i])
-			sfx(12)
-		end
-	end
-	
-	checkexplosions()
-
-	-- powerup timers
-	if timer_slow > 0 then
-		timer_slow-=1
-	end
-	if timer_expand > 0 then
-		timer_expand-=1
-	end
-	if timer_reduce > 0 then
-		timer_reduce-=1
-	end
-	if timer_mega > 0 then
-		timer_mega-=1
-	end	
-end
-
-function updateball(b)
-	
-	if b.stuck then
-		--ball_x=pad_x+flr(pad_w/2)
-		-- only sticky for first ball for now
-	 b.x=pad_x+sticky_x
-		b.y=pad_y-ball_r-1
-	else
-		--regular ball physics
-		if timer_slow > 0 then
-			nextx=b.x+(b.dx/2)
-			nexty=b.y+(b.dy/2)
-		else
-			nextx=b.x+b.dx
-			nexty=b.y+b.dy
-		end
-		
-		-- check if ball hit pad	
-		if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
-			shake+=0.01
-			-- find out which direction to deflect
-			if deflx_ball_box(b.x,b.y,b.dx,b.dy,pad_x,pad_y,pad_w,pad_h) then
-				-- ball hit paddle on the side
-				b.dx = -b.dx
-				if b.x < pad_x+pad_w/2 then
-					nextx=pad_x-ball_r
-				else
-					nextx=pad_x+pad_w+ball_r
-				end
-			else
-				-- ball hit paddle on the top/bottom
-				b.dy = -b.dy
-				if b.y > pad_y then
-					-- bottom
-					nexty=pad_y+pad_h+ball_r
-				else
-					-- top
-					nexty=pad_y-ball_r
-					if abs(pad_dx) > 2 then
-						-- change angle
-						if sign(pad_dx)==sign(b.dx) then
-							-- flatten angle
-							setang(b,mid(0,b.ang-1,2))
-						else
-							-- raise angle
-							if b.ang==2 then
-								b.dx=-b.dx
-							else
-								setang(b,mid(0,b.ang+1,2))
-							end
-						end
-					end
-				end
-			end
-			
-			score+=multiplier*pointsmult
-			multiplier=1
-			sfx(1)
-			
-			--catch powerup
-			if sticky and b.dy<0 then	
-				releasestuck()
-				sticky = false
-				b.stuck = true
-				sticky_x = b.x-pad_x
-			end
-		end
-		
-		-- check if ball hit brick
-		brickhit=false
-		for i=1,#bricks do
-			if bricks[i].v and ball_box(nextx,nexty,bricks[i].x,bricks[i].y,brick_w,brick_h) then
-				-- find out which direction to deflect
-				if not(brickhit) then
-					if (timer_mega <= 0) 
-					or (timer_mega > 0 and bricks[i].t=="i") then 
-						if deflx_ball_box(b.x,b.y,b.dx,b.dy,bricks[i].x,bricks[i].y,brick_w,brick_h) then
-							b.dx = -b.dx
-						else
-							b.dy = -b.dy
-						end
-					end
-				end
-				brickhit=true
-				hitbrick(i,true)
-			end
-		end
-		
-		-- check if win
-		if levelfinished() then
-			_draw()
-			levelover()
-		end
-		
-		-- move ball
-		b.x=nextx
-		b.y=nexty
-		
-		-- this is where we check
-		--- if the ball hits the edges
-		if nextx > 127 or nextx < 0 then
-			nextx=mid(0,nextx,127)
-			b.dx=-b.dx
-			sfx(0)
-		end
-		if nexty < (banner+2) then
-			nexty=mid(0,nexty,127)
-			b.dy=-b.dy
-			sfx(0)
-		elseif nexty > 129 then
-			-- ball is lost
-			sfx(3)
-			if #ball > 1 then
-				shake+=0.15
-				del(ball,b)
-			else
-				shake+=0.4
-				lives-=1
-				if lives < 0 then
-					gameover()
-				else
-					serveball()
-				end
-			end
-		end
-		
-	end -- end of sticky if
-end
-
 function releasestuck()
 	for i=1,#ball do
 		if ball[i].stuck then
@@ -421,115 +220,6 @@ function explodebrick(_i)
 	--end
 end
 
-function update_start()
-	if startcountdown < 0 then
-		if btn(5) then
-			startcountdown=80
-			sfx(13)
-			--startgame()
-		end
-	else
-		startcountdown-=1
-		doblink()
-		doblink()
-		doblink()
-		doblink()
-		if startcountdown<=0 then
-			startcountdown=-1
-			startgame()
-		end
-	end
-end
-
-function update_gameover()
-	if btn(5) then
-		startgame()
-	end
-end
-
-function update_levelover()
-	if btn(5) then
-		nextlevel()
-	end
-end
-
-function draw_game()
-	-- fill background
-	cls()
-	--cls(1)
-	rectfill(0,0,127,127,1)
-	
-	-- draw ball and paddle
-	print(message, 0, 0, 8)
-	for i=1,#ball do
-			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
-			if ball[i].stuck then
-				line(ball[i].x+ball[i].dx*4,ball[i].y-ball[i].dy*4,ball[i].x+ball[i].dx*6,ball[i].y+ball[i].dy*6,10)
-			end
-	end
-
-	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
-	
-	-- draw bricks
-	for i=1,#bricks do
-		if bricks[i].v then
-			if bricks[i].t == "b" then
-				brickcol = 14
-			elseif bricks[i].t == "i" then
-				brickcol = 15
-			elseif bricks[i].t == "h" then
-				brickcol = 6
-			elseif bricks[i].t == "s" then
-				brickcol = 8
-			elseif bricks[i].t == "p" then
-				brickcol = 12
-			--this type for debug only
-			elseif bricks[i].t == "z" or bricks[i].t == "zz" then
-				brickcol = 3
-			end
-			rectfill(bricks[i].x,bricks[i].y,bricks[i].x+brick_w,bricks[i].y+brick_h,brickcol)
-		end
-	end
-	
-	-- draw pills
-	for i=1,#pills do
-		if pills[i].t==5 then
-			palt(0,false)
-			palt(15,true)
-		end
-		spr(pills[i].t,pills[i].x,pills[i].y)
-		palt()
-	end
-	
-	rectfill(0,0,128,banner,0)
-	if debug1!="" then
-		print("debug:"..debug1,1,1,7)
-	else
-		print("lives:"..lives,1,1,7)
-		print("score:"..score,40,1,7)
-	--	print("debug:"..debug1,80,1,7)
-	end
-end
-
-function draw_start()
-	cls(1)
-	print("pico hero breakout",30,40,7)
-	print("press ❎ to start",32,80,blink_g)
-end
-
-function draw_gameover()
-	rectfill(0,60,128,75,0)
-	print("game over!",47,62,7)
-	print("press ❎ to restart",30,68,6)
-end
-
-function draw_levelover()
-	rectfill(0,60,128,75,0)
-	print("stage clear!",47,62,7)
-	print("press ❎ to continue",30,68,6)
-end
-
-
 function startgame()
 	mode="game"
 	
@@ -563,7 +253,7 @@ function startgame()
 	level = levels[levelnum]
 	buildbricks(level)
 	
-	lives=3
+	lives=0
 	score=0
 	multiplier=1
 	pointsmult=1
@@ -658,7 +348,9 @@ end
 	
 function gameover()
 	sfx(2)
-	mode="gameover"
+	mode="gameoverwait"
+	govercountdown=60
+	blink_s=16
 end
 
 function levelover()
@@ -870,7 +562,8 @@ function doshake()
 end
 
 function doblink()
-	local g_seq={3,11,10,7}
+	local g_seq={3,11,7,11}
+	local w_seq={5,6,7,6}
 	blink_f+=1
 	if blink_f > blink_s then
 		blink_f = 0
@@ -879,8 +572,405 @@ function doblink()
 			blink_i=1
 		end
 		blink_g=g_seq[blink_i]
+		
+		blink_w_i+=1
+		if blink_w_i > #w_seq then
+			blink_w_i=1
+		end
+		blink_w=w_seq[blink_w_i]
 	end
 end
+
+function fadepal(_perc)
+ -- 0 means normal
+ -- 1 is completely black
+ 
+ local p=flr(mid(0,_perc,1)*100)
+ 
+ local kmax,col,dpal,j,k
+ 
+ dpal={0,1,1, 2,1,13,6,
+          4,4,9,3, 13,1,13,14}
+ 
+ -- now we go trough all colors
+ for j=1,15 do
+  --grab the current color
+  col = j
+  
+  --now calculate how many
+  --times we want to fade the
+  --color.
+  kmax=(p+(j*1.46))/22
+
+  for k=1,kmax do
+   col=dpal[col]
+  end
+  
+  --finally, we change the
+  --palette
+  pal(j,col,1)
+ end
+end
+
+-->8
+-----------------------------
+-------- update func --------
+-----------------------------
+
+function _update60()
+	doblink()
+	doshake()
+	if mode=="game" then
+		update_game()
+	elseif mode=="start" then
+		update_start()
+	elseif mode=="gameover" then
+		update_gameover()
+	elseif mode=="gameoverwait" then
+		update_gameoverwait()
+	elseif mode=="levelover" then
+		update_levelover()
+	end
+end
+
+function update_start()
+	if startcountdown < 0 then
+		if btn(5) then
+			startcountdown=80
+			blink_s=1
+			sfx(13)
+			--startgame()
+		end
+	else
+		startcountdown-=1
+		fadeperc=(80-startcountdown)/80
+		doblink()
+		if startcountdown<=0 then
+			startcountdown=-1
+			blink_s=8
+			fadeperc=0
+			startgame()
+		end
+	end
+end
+
+function update_gameover()
+ if	govercountdown<0 then
+		if btn(5) then
+			govercountdown=80
+			blink_s=1
+			sfx(13)
+		end
+	else
+		govercountdown-=1
+		fadeperc=(80-govercountdown)/80
+		doblink()
+		if govercountdown<=0 then
+			govercountdown=-1
+			blink_s=8
+			fadeperc=0
+			startgame()
+		end
+	end
+end
+
+function update_gameoverwait()
+	govercountdown-=1
+	if govercountdown<=0 then
+		govercountdown=-1
+  mode="gameover"
+	end
+end
+
+
+function update_levelover()
+	if btn(5) then
+		nextlevel()
+	end
+end
+
+function update_game()
+	local nextx,nexty,brickhit
+
+	-- check if pad should grow/shrink
+	if timer_expand > 0 then
+		-- todo gradual growth
+		pad_w=flr(pad_wo*1.5)
+	elseif timer_reduce > 0 then
+		pad_w=flr(pad_wo/2)
+		pointsmult=2
+	else
+		pad_w=pad_wo
+	end
+
+	move_paddle()
+
+	-- big ball loop
+	for i=#ball,1,-1 do
+		updateball(ball[i])
+	end
+	
+	-- move pills
+	-- check pill collision
+	for i=#pills,1,-1 do
+		pills[i].y+=0.7
+		if pills[i].y > 128 then
+			-- remove pill
+			del(pills,pills[i])
+		elseif box_box(pills[i].x,pills[i].y,8,6,pad_x,pad_y,pad_w,pad_h) then
+			powerupget(pills[i].t)
+			-- remove pill
+			del(pills,pills[i])
+			sfx(12)
+		end
+	end
+	
+	checkexplosions()
+
+	-- powerup timers
+	if timer_slow > 0 then
+		timer_slow-=1
+	end
+	if timer_expand > 0 then
+		timer_expand-=1
+	end
+	if timer_reduce > 0 then
+		timer_reduce-=1
+	end
+	if timer_mega > 0 then
+		timer_mega-=1
+	end	
+end
+
+function updateball(b)
+	
+	if b.stuck then
+		--ball_x=pad_x+flr(pad_w/2)
+		-- only sticky for first ball for now
+	 b.x=pad_x+sticky_x
+		b.y=pad_y-ball_r-1
+	else
+		--regular ball physics
+		if timer_slow > 0 then
+			nextx=b.x+(b.dx/2)
+			nexty=b.y+(b.dy/2)
+		else
+			nextx=b.x+b.dx
+			nexty=b.y+b.dy
+		end
+		
+		-- check if ball hit pad	
+		if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
+			shake+=0.01
+			-- find out which direction to deflect
+			if deflx_ball_box(b.x,b.y,b.dx,b.dy,pad_x,pad_y,pad_w,pad_h) then
+				-- ball hit paddle on the side
+				b.dx = -b.dx
+				if b.x < pad_x+pad_w/2 then
+					nextx=pad_x-ball_r
+				else
+					nextx=pad_x+pad_w+ball_r
+				end
+			else
+				-- ball hit paddle on the top/bottom
+				b.dy = -b.dy
+				if b.y > pad_y then
+					-- bottom
+					nexty=pad_y+pad_h+ball_r
+				else
+					-- top
+					nexty=pad_y-ball_r
+					if abs(pad_dx) > 2 then
+						-- change angle
+						if sign(pad_dx)==sign(b.dx) then
+							-- flatten angle
+							setang(b,mid(0,b.ang-1,2))
+						else
+							-- raise angle
+							if b.ang==2 then
+								b.dx=-b.dx
+							else
+								setang(b,mid(0,b.ang+1,2))
+							end
+						end
+					end
+				end
+			end
+			
+			score+=multiplier*pointsmult
+			multiplier=1
+			sfx(1)
+			
+			--catch powerup
+			if sticky and b.dy<0 then	
+				releasestuck()
+				sticky = false
+				b.stuck = true
+				sticky_x = b.x-pad_x
+			end
+		end
+		
+		-- check if ball hit brick
+		brickhit=false
+		for i=1,#bricks do
+			if bricks[i].v and ball_box(nextx,nexty,bricks[i].x,bricks[i].y,brick_w,brick_h) then
+				-- find out which direction to deflect
+				if not(brickhit) then
+					if (timer_mega <= 0) 
+					or (timer_mega > 0 and bricks[i].t=="i") then 
+						if deflx_ball_box(b.x,b.y,b.dx,b.dy,bricks[i].x,bricks[i].y,brick_w,brick_h) then
+							b.dx = -b.dx
+						else
+							b.dy = -b.dy
+						end
+					end
+				end
+				brickhit=true
+				hitbrick(i,true)
+			end
+		end
+		
+		-- check if win
+		if levelfinished() then
+			_draw()
+			levelover()
+		end
+		
+		-- move ball
+		b.x=nextx
+		b.y=nexty
+		
+		-- this is where we check
+		--- if the ball hits the edges
+		if nextx > 127 or nextx < 0 then
+			nextx=mid(0,nextx,127)
+			b.dx=-b.dx
+			sfx(0)
+		end
+		if nexty < (banner+2) then
+			nexty=mid(0,nexty,127)
+			b.dy=-b.dy
+			sfx(0)
+		elseif nexty > 129 then
+			-- ball is lost
+			sfx(3)
+			if #ball > 1 then
+				shake+=0.15
+				del(ball,b)
+			else
+				shake+=0.4
+				lives-=1
+				if lives < 0 then
+					gameover()
+				else
+					serveball()
+				end
+			end
+		end
+		
+	end -- end of sticky if
+end
+-->8
+-----------------------------
+-------- drawin func --------
+-----------------------------
+
+function _draw()
+	if mode=="game" then
+		draw_game()
+	elseif mode=="start" then
+		draw_start()
+	elseif mode=="gameover" then
+		draw_gameover()
+	elseif mode=="gameoverwait" then
+  draw_game()
+	elseif mode=="levelover" then
+		draw_levelover()
+	end
+
+	--fade the screen
+	pal()
+	if fadeperc != 0 then
+		fadepal(fadeperc)
+	end
+end
+
+function draw_game()
+	-- fill background
+	cls()
+	--cls(1)
+	rectfill(0,0,127,127,1)
+	
+	-- draw ball and paddle
+	print(message, 0, 0, 8)
+	for i=1,#ball do
+			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
+			if ball[i].stuck then
+				line(ball[i].x+ball[i].dx*4,ball[i].y-ball[i].dy*4,ball[i].x+ball[i].dx*6,ball[i].y+ball[i].dy*6,10)
+			end
+	end
+
+	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
+	
+	-- draw bricks
+	for i=1,#bricks do
+		if bricks[i].v then
+			if bricks[i].t == "b" then
+				brickcol = 14
+			elseif bricks[i].t == "i" then
+				brickcol = 15
+			elseif bricks[i].t == "h" then
+				brickcol = 6
+			elseif bricks[i].t == "s" then
+				brickcol = 8
+			elseif bricks[i].t == "p" then
+				brickcol = 12
+			--this type for debug only
+			elseif bricks[i].t == "z" or bricks[i].t == "zz" then
+				brickcol = 3
+			end
+			rectfill(bricks[i].x,bricks[i].y,bricks[i].x+brick_w,bricks[i].y+brick_h,brickcol)
+		end
+	end
+	
+	-- draw pills
+	for i=1,#pills do
+		if pills[i].t==5 then
+			palt(0,false)
+			palt(15,true)
+		end
+		spr(pills[i].t,pills[i].x,pills[i].y)
+		palt()
+	end
+	
+	rectfill(0,0,128,banner,0)
+	if debug1!="" then
+		print("debug:"..debug1,1,1,7)
+	else
+		print("lives:"..lives,1,1,7)
+		print("score:"..score,40,1,7)
+	--	print("debug:"..debug1,80,1,7)
+	end
+end
+
+function draw_start()
+	cls(1)
+	print("pico hero breakout",30,40,7)
+	print("press ❎ to start",32,80,blink_g)
+end
+
+function draw_gameover()
+	rectfill(0,60,128,75,0)
+	print("game over!",47,62,7)
+	print("press ❎ to restart",30,68,blink_w)
+end
+
+function draw_levelover()
+	rectfill(0,60,128,75,0)
+	print("stage clear!",47,62,7)
+	print("press ❎ to continue",30,68,6)
+end
+
 __gfx__
 0000000006777760067777600677776006777760f677776f06777760067777600000000000000000000000000000000000000000000000000000000000000000
 00000000559944955576777555b33bb555c1c1c55508800555e222e5558288850000000000000000000000000000000000000000000000000000000000000000
