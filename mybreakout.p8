@@ -40,6 +40,10 @@ function _init()
 	
 	fadeperc=0
 	
+	arrm=1
+	arrm2=1
+	arrm_f=0
+	
 		--debug
 	debug1=""
 end
@@ -564,6 +568,8 @@ end
 function doblink()
 	local g_seq={3,11,7,11}
 	local w_seq={5,6,7,6}
+	
+	-- text blink
 	blink_f+=1
 	if blink_f > blink_s then
 		blink_f = 0
@@ -579,6 +585,20 @@ function doblink()
 		end
 		blink_w=w_seq[blink_w_i]
 	end
+	
+	-- trajectory preview animation
+	arrm_f+=1
+	if arrm_f>30 then
+		arrm_f=0
+	end
+	arrm=1+(2.5*(arrm_f/30))
+	-- todo make method for dots??
+	-- second dot
+	local af2=arrm_f+15
+	if af2>30 then
+		af2-=30
+	end
+	arrm2=1+(2.5*(af2/30))
 end
 
 function fadepal(_perc)
@@ -648,7 +668,7 @@ function update_start()
 		if startcountdown<=0 then
 			startcountdown=-1
 			blink_s=8
-			fadeperc=0
+		--	fadeperc=0
 			startgame()
 		end
 	end
@@ -668,7 +688,7 @@ function update_gameover()
 		if govercountdown<=0 then
 			govercountdown=-1
 			blink_s=8
-			fadeperc=0
+			--fadeperc=0
 			startgame()
 		end
 	end
@@ -691,6 +711,14 @@ end
 
 function update_game()
 	local nextx,nexty,brickhit
+
+	-- fade in game
+	if fadeperc!=0 then
+		fadeperc-=0.05
+		if fadeperc<0 then
+			fadeperc=0
+		end
+	end
 
 	-- check if pad should grow/shrink
 	if timer_expand > 0 then
@@ -906,7 +934,18 @@ function draw_game()
 	for i=1,#ball do
 			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
 			if ball[i].stuck then
-				line(ball[i].x+ball[i].dx*4,ball[i].y-ball[i].dy*4,ball[i].x+ball[i].dx*6,ball[i].y+ball[i].dy*6,10)
+--				line(ball[i].x+ball[i].dx*4*arrm,
+--				ball[i].y+ball[i].dy*4*arrm,
+--				ball[i].x+ball[i].dx*6*arrm,
+--				ball[i].y+ball[i].dy*6*arrm,
+--				10)
+				-- trajectory preview dots
+				pset(ball[i].x+ball[i].dx*4*arrm,
+					ball[i].y+ball[i].dy*4*arrm,
+					10)
+				pset(ball[i].x+ball[i].dx*4*arrm2,
+					ball[i].y+ball[i].dy*4*arrm2,
+					10)
 			end
 	end
 
