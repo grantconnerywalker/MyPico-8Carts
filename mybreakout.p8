@@ -21,8 +21,8 @@ function _init()
 	levels={}
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
-	levels[1]="i9b//x4b//sbsbsbsbsbsb"
-	--levels[1]="i9b/p9p"
+	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
+	levels[1]="i9b/p9p"
 
 	shake=0
 	
@@ -43,6 +43,9 @@ function _init()
 	arrm=1
 	arrm2=1
 	arrm_f=0
+	
+	--particles
+	part={}
 	
 		--debug
 	debug1=""
@@ -106,6 +109,7 @@ end
 
 -- todo fix indestructible b
 function hitbrick(_i,_combo)
+	-- standard brick
 	if bricks[_i].t == "b" then
 		bricks[_i].v=false
 		if _combo then
@@ -119,8 +123,12 @@ function hitbrick(_i,_combo)
 		else
 			sfx(5)
 		end
+		--spawn particles
+		shatterbrick(bricks[_i])
+	-- invincible brick
 	elseif bricks[_i].t == "i" then
 		sfx(9)
+	-- hardened brick
 	elseif bricks[_i].t == "h" then
 		--if powerup==6 then
 		if timer_mega > 0 then
@@ -140,6 +148,7 @@ function hitbrick(_i,_combo)
 			sfx(10)
 			bricks[_i].t = "b"
 		end
+	-- powerup brick
 	elseif bricks[_i].t == "p" then
 		sfx(7)
 		if _combo then
@@ -148,6 +157,9 @@ function hitbrick(_i,_combo)
 		end
 		bricks[_i].v=false
 		spawnpill(bricks[_i].x,bricks[_i].y)
+		--spawn particles
+		shatterbrick(bricks[_i])
+	-- sploding brick
 	elseif bricks[_i].t == "s" then
 		--splode sfx (pink?)
 		sfx(11)
@@ -156,6 +168,8 @@ function hitbrick(_i,_combo)
 			score+=multiplier*pointsmult
 			multiplier+=1
 		end
+		--spawn particles
+		shatterbrick(bricks[_i])
 	end
 end
 
@@ -632,6 +646,89 @@ function fadepal(_perc)
  end
 end
 
+--particle stuff
+
+-- add a particle
+function addpart(_x,_y,_dx,_dy,_type,_maxage,_col)
+ local _p={}
+	_p.x=_x
+	_p.y=_y
+	_p.dx=_dx
+	_p.dy=_dy
+	_p.type=_type
+	_p.maxage=_maxage
+--	_p.col=0
+	
+	_p.colarr=_col
+	_p.age=0
+	
+	add(part,_p) 
+end
+
+-- spawn a trail particle
+function spawntrail(_x,_y)
+	if rnd()<0.5 then
+		local _ang = rnd()
+		local _dx = sin(_ang)*ball_r*0.5
+		local _dy = cos(_ang)*ball_r*0.5
+		
+		addpart(_x+_dx,_y+_dy,0,0,0,15+rnd(15),{10,9})
+	end
+end
+
+-- shatter brick
+function shatterbrick(_b)
+	for i=0,10 do
+		local _ang = rnd()
+		local _dx = sin(_ang)*1
+		local _dy = cos(_ang)*1
+		addpart(_b.x,_b.y,_dx,_dy,1,60,{7})
+	end
+end
+
+-- update particles
+function updateparts()
+	local _p
+	for i=#part,1,-1 do
+		_p=part[i]
+		_p.age+=1
+		if _p.age >= _p.maxage then
+			del(part,part[i])
+		else
+			-- change colors
+			if #_p.colarr==1 then
+				_p.col=_p.colarr[1]
+			else
+				local _ci=(_p.age/_p.maxage)
+				_ci=1+flr(_ci*#_p.colarr)
+				_p.col = _p.colarr[_ci]
+			end
+			--if () > 0.5 then
+				--_p.col=_p.oldcol
+			--end
+			
+			-- apply gravity
+			if _p.type == 1 then
+				_p.dy+=0.1
+			end
+			
+			-- move particle
+			_p.x+=_p.dx
+			_p.y+=_p.dy
+		end
+	end
+end
+
+-- draw particles
+function drawparts()
+	local _p
+	for i=1,#part do
+		_p=part[i]
+		if _p.type==0 or _p.type==1 then
+			pset(_p.x,_p.y,_p.col)
+		end
+	end
+end
 -->8
 -----------------------------
 -------- update func --------
@@ -640,6 +737,7 @@ end
 function _update60()
 	doblink()
 	doshake()
+	updateparts()
 	if mode=="game" then
 		update_game()
 	elseif mode=="start" then
@@ -868,6 +966,9 @@ function updateball(b)
 		b.x=nextx
 		b.y=nexty
 		
+		-- spawn trail
+		spawntrail(b.x,b.y)
+		
 		-- this is where we check
 		--- if the ball hits the edges
 		if nextx > 127 or nextx < 0 then
@@ -929,26 +1030,6 @@ function draw_game()
 	--cls(1)
 	rectfill(0,0,127,127,1)
 	
-	-- draw ball and paddle
-	print(message, 0, 0, 8)
-	for i=1,#ball do
-			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
-			if ball[i].stuck then
---				line(ball[i].x+ball[i].dx*4*arrm,
---				ball[i].y+ball[i].dy*4*arrm,
---				ball[i].x+ball[i].dx*6*arrm,
---				ball[i].y+ball[i].dy*6*arrm,
---				10)
-				-- trajectory preview dots
-				pset(ball[i].x+ball[i].dx*4*arrm,
-					ball[i].y+ball[i].dy*4*arrm,
-					10)
-				pset(ball[i].x+ball[i].dx*4*arrm2,
-					ball[i].y+ball[i].dy*4*arrm2,
-					10)
-			end
-	end
-
 	rectfill(pad_x,pad_y,pad_x+pad_w,pad_y+pad_h,7)
 	
 	-- draw bricks
@@ -972,6 +1053,9 @@ function draw_game()
 		end
 	end
 	
+	-- particles
+	drawparts()
+	
 	-- draw pills
 	for i=1,#pills do
 		if pills[i].t==5 then
@@ -982,6 +1066,27 @@ function draw_game()
 		palt()
 	end
 	
+		-- draw ball and paddle
+	print(message, 0, 0, 8)
+	for i=1,#ball do
+			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
+			if ball[i].stuck then
+--				line(ball[i].x+ball[i].dx*4*arrm,
+--				ball[i].y+ball[i].dy*4*arrm,
+--				ball[i].x+ball[i].dx*6*arrm,
+--				ball[i].y+ball[i].dy*6*arrm,
+--				10)
+				-- trajectory preview dots
+				pset(ball[i].x+ball[i].dx*4*arrm,
+					ball[i].y+ball[i].dy*4*arrm,
+					10)
+				pset(ball[i].x+ball[i].dx*4*arrm2,
+					ball[i].y+ball[i].dy*4*arrm2,
+					10)
+			end
+	end
+
+	-- ui
 	rectfill(0,0,128,banner,0)
 	if debug1!="" then
 		print("debug:"..debug1,1,1,7)
