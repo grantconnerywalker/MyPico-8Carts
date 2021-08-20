@@ -22,7 +22,7 @@ function _init()
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
-	levels[1]="i9b/p9p"
+	levels[1]="i9b/p9pp9p/p9pp9p"
 
 	shake=0
 	
@@ -661,7 +661,7 @@ end
 --particle stuff
 
 -- add a particle
-function addpart(_x,_y,_dx,_dy,_type,_maxage,_col)
+function addpart(_x,_y,_dx,_dy,_type,_maxage,_col,_s)
  local _p={}
 	_p.x=_x
 	_p.y=_y
@@ -675,8 +675,56 @@ function addpart(_x,_y,_dx,_dy,_type,_maxage,_col)
 	_p.age=0
 	_p.rot=0
 	_p.rottimer=0
+	_p.s=_s
+	_p.os=_s
 	
 	add(part,_p) 
+end
+
+-- spawn a small puft of smoke
+function spawnpuft(_x,_y)
+	-- todo spawn puft on invincible brick hit?
+	for i=0,5 do
+		local _ang = rnd()
+		local _dx = sin(_ang)*1
+		local _dy = cos(_ang)*1
+		addpart(_x,_y,_dx,_dy,2,15+rnd(15),{7,6,5},1+rnd(2))
+	end
+end
+
+-- spawn a puft in the color of a pill
+function spawnpillpuft(_x,_y,_p)
+	-- todo spawn puft on invincible brick hit?
+	for i=0,10 do
+		local _ang = rnd()
+		local _dx = sin(_ang)*(0.4+rnd(2))
+		local _dy = cos(_ang)*(0.4+rnd(2))
+		local _mycol
+		if _p==1 then
+			-- slow down -- orange
+			timer_slow = 900
+			_mycol = {9,9,9,4,4,0}
+		elseif _p==2 then
+			-- life -- white
+			_mycol = {7,7,7,6,5,0}
+		elseif _p==3 then
+		 -- catch -- green
+		 _mycol = {11,11,11,3,3,0}
+		elseif _p==4 then
+			-- expand -- blue
+			_mycol = {12,12,12,13,1,0}
+		elseif _p==5 then
+			-- reduce -- black
+			_mycol = {0,0,0,5,5,6}
+		elseif _p==6 then
+			-- megaball -- pink
+			_mycol = {14,14,14,13,2,0}
+		elseif _p==7 then
+			-- multiball -- red
+			_mycol = {8,8,8,4,2,0}
+		end
+		addpart(_x,_y,_dx,_dy,2,20+rnd(15),_mycol,1+rnd(4))
+	end
 end
 
 -- spawn a trail particle
@@ -693,7 +741,11 @@ end
 -- shatter brick
 function shatterbrick(_b,_vx,_vy)
 	-- bump the brick
-	shake += 0.07
+	-- screenshake and sound
+	if shake<0.5 then
+		shake += 0.07
+	end
+	sfx(14)
 	_b.ox+=_vx*1.1
 	_b.oy+=_vy*1.1
 	for x=0,brick_w do
@@ -714,10 +766,16 @@ function shatterbrick(_b,_vx,_vy)
 	   local _dx = sin(_ang)*rnd(2)+(_vx/2)
 	   local _dy = cos(_ang)*rnd(2)+(_vy/2)	
 	   local _spr = 16+flr(rnd(14))
-   	addpart(_b.x,_b.y,_dx,_dy,3,100,{_spr})
+   	addpart(_b.x,_b.y,_dx,_dy,3,100,{_spr},0)
 		end
 	end
 end
+
+-- particle types
+-- type 0 - static pixel
+-- type 1 - gravity pixel
+-- type 2 - ball of smoke
+-- type 3 - rotating sprite
 
 -- update particles
 function updateparts()
@@ -762,6 +820,18 @@ function updateparts()
 				end
 			end
 					
+			-- shrink
+			if _p.type == 2 then
+				local _ci=1-(_p.age/_p.maxage)
+				_p.s=_ci*_p.os
+			end
+		
+			-- friction
+			if _p.type == 2 then
+				_p.dx=_p.dx/1.2
+				_p.dy=_p.dy/1.2
+			end			
+			
 			-- move particle
 			_p.x+=_p.dx
 			_p.y+=_p.dy
@@ -776,6 +846,8 @@ function drawparts()
 		_p=part[i]
 		if _p.type==0 or _p.type==1 then
 			pset(_p.x,_p.y,_p.col)
+		elseif _p.type==2 then
+			circfill(_p.x,_p.y,_p.s,_p.col)
 		elseif _p.type==3 then
 			local _fx,_fy
 			--type 3 => sprite
@@ -949,6 +1021,7 @@ function update_game()
 			del(pills,pills[i])
 		elseif box_box(pills[i].x,pills[i].y,8,6,pad_x,pad_y,pad_w,pad_h) then
 			powerupget(pills[i].t)
+			spawnpillpuft(pills[i].x,pills[i].y,pills[i].t)
 			-- remove pill
 			del(pills,pills[i])
 			sfx(12)
@@ -995,6 +1068,7 @@ function updateball(b)
 		-- check if ball hit pad	
 		if ball_box(nextx,nexty,pad_x,pad_y,pad_w,pad_h) then
 			shake+=0.01
+			spawnpuft(nextx,nexty)
 			-- find out which direction to deflect
 			if deflx_ball_box(b.x,b.y,b.dx,b.dy,pad_x,pad_y,pad_w,pad_h) then
 				-- ball hit paddle on the side
@@ -1084,11 +1158,13 @@ function updateball(b)
 			nextx=mid(0,nextx,127)
 			b.dx=-b.dx
 			sfx(0)
+			spawnpuft(nextx,nexty)
 		end
 		if nexty < (banner+2) then
 			nexty=mid(0,nexty,127)
 			b.dy=-b.dy
 			sfx(0)
+			spawnpuft(nextx,nexty)
 		elseif nexty > 129 then
 			-- ball is lost
 			sfx(3)
@@ -1268,3 +1344,4 @@ __sfx__
 00020000166501a6501d6501f65020650206501f6501c6501965016650126500e65015000100000f0002d6002c6002b6002a600286002560023600206001e6001c60019600176001560013600106000d6000a600
 00010000350502e050210501a050170503205034050310501d0501805017050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000400000405013050050501d05007050240600c0602c050120403104017030350301c030380301f0303b030240303e0202400026000000000000000000000000000000000000000000000000000000000000000
+000400003f6502e6501b6501765015630106200e6300c6200c6200a620096200b4000c40011400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
