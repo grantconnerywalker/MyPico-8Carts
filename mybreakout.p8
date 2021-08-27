@@ -22,7 +22,9 @@ function _init()
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
-	levels[1]="i9b/p9pp9p/p9pp9p"
+	--levels[1]="i9b/p9pp9p/p9pp9p"
+	levels[1]="////x4b/s9s"
+ levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
 
 	shake=0
 	
@@ -103,7 +105,7 @@ function powerupget(_p)
 		timer_expand = 0
 	elseif _p==6 then
 		-- megaball
-		timer_mega=900
+		timer_mega=300
 	elseif _p==7 then
 		-- multiball
 		multiball()
@@ -169,6 +171,7 @@ function hitbrick(_i,_combo)
 	elseif bricks[_i].t == "s" then
 		--splode sfx (pink?)
 		sfx(11)
+				shatterbrick(bricks[_i],lasthitx,lasthity)
 		bricks[_i].t="zz"
 		if _combo then
 			score+=multiplier*pointsmult
@@ -210,10 +213,13 @@ function checkexplosions()
 	for i=1,#bricks do
 		if bricks[i].t == "z" and bricks[i].v then
 			explodebrick(i)
-			shake+=0.4
-			if shake>1 then
-				shake=1
+			spawnexplosion(bricks[i].x,bricks[i].y)
+			if shake < 0.5 then
+				shake+=0.1
 			end
+			--if shake>0.5 then
+			--	shake=1
+			--end
 		end
 	end
 	
@@ -384,8 +390,10 @@ function gameover()
 end
 
 function levelover()
-	sfx(8) -- todo change sound
-	mode="levelover"
+ -- todo change sound
+	mode="leveloverwait"
+	govercountdown=60
+	blink_s=16
 end
 
 function levelfinished()
@@ -695,35 +703,72 @@ end
 -- spawn a puft in the color of a pill
 function spawnpillpuft(_x,_y,_p)
 	-- todo spawn puft on invincible brick hit?
-	for i=0,10 do
+	for i=0,20 do
 		local _ang = rnd()
-		local _dx = sin(_ang)*(0.4+rnd(2))
-		local _dy = cos(_ang)*(0.4+rnd(2))
+		local _dx = sin(_ang)*(1+rnd(2))
+		local _dy = cos(_ang)*(1+rnd(2))
 		local _mycol
 		if _p==1 then
 			-- slow down -- orange
 			timer_slow = 900
-			_mycol = {9,9,9,4,4,0}
+			_mycol = {9,9,4,4,0}
 		elseif _p==2 then
 			-- life -- white
-			_mycol = {7,7,7,6,5,0}
+			_mycol = {7,7,6,5,0}
 		elseif _p==3 then
 		 -- catch -- green
-		 _mycol = {11,11,11,3,3,0}
+		 _mycol = {11,11,3,3,0}
 		elseif _p==4 then
 			-- expand -- blue
-			_mycol = {12,12,12,13,1,0}
+			_mycol = {12,12,13,5,0}
 		elseif _p==5 then
 			-- reduce -- black
-			_mycol = {0,0,0,5,5,6}
+			_mycol = {0,0,5,5,6}
 		elseif _p==6 then
 			-- megaball -- pink
-			_mycol = {14,14,14,13,2,0}
+			_mycol = {14,14,13,2,0}
 		elseif _p==7 then
 			-- multiball -- red
-			_mycol = {8,8,8,4,2,0}
+			_mycol = {8,8,4,2,0}
 		end
 		addpart(_x,_y,_dx,_dy,2,20+rnd(15),_mycol,1+rnd(4))
+	end
+end
+
+-- spawn death particles
+function spawndeath(_x,_y)
+	-- todo spawn puft on invincible brick hit?
+	for i=0,30 do
+		local _ang = rnd()
+		local _dx = sin(_ang)*(2+rnd(4))
+		local _dy = cos(_ang)*(2+rnd(4))
+		local _mycol
+		
+		_mycol = {10,10,10,10,9}
+		
+		addpart(_x,_y,_dx,_dy,2,20+rnd(15),_mycol,1+rnd(4))
+	end
+end
+
+-- spawn explosion particles
+function spawnexplosion(_x,_y)
+ -- first smoke
+	for i=0,20 do
+		local _ang = rnd()
+		local _dx = sin(_ang)*(rnd(4))
+		local _dy = cos(_ang)*(rnd(4))
+		local _mycol
+		_mycol={0,0,5,5,6}
+		addpart(_x,_y,_dx,_dy,2,80+rnd(15),_mycol,1+rnd(4))
+	end
+	--fireball
+	for i=0,30 do
+		local _ang = rnd()
+		local _dx = sin(_ang)*(1+rnd(3))
+		local _dy = cos(_ang)*(1+rnd(3))
+		local _mycol
+		_mycol={7,10,9,8,5}
+		addpart(_x,_y,_dx,_dy,2,30+rnd(15),_mycol,1+rnd(4))
 	end
 end
 
@@ -735,6 +780,17 @@ function spawntrail(_x,_y)
 		local _dy = cos(_ang)*ball_r*0.5
 		
 		addpart(_x+_dx,_y+_dy,0,0,0,15+rnd(15),{10,9})
+	end
+end
+
+-- spawn mega trail particle
+function spawnmtrail(_x,_y)
+	if rnd()<0.5 then
+		local _ang = rnd()
+		local _dx = sin(_ang)*ball_r
+		local _dy = cos(_ang)*ball_r
+		
+		addpart(_x+_dx,_y+_dy,0,0,2,60+rnd(15),{14,13,2},1.5+rnd(1))
 	end
 end
 
@@ -924,6 +980,8 @@ function _update60()
 		update_gameoverwait()
 	elseif mode=="levelover" then
 		update_levelover()
+	elseif mode=="leveloverwait" then
+		update_leveloverwait()
 	end
 end
 
@@ -976,10 +1034,32 @@ function update_gameoverwait()
 	end
 end
 
+function update_leveloverwait()
+	govercountdown-=1
+	if govercountdown<=0 then
+		govercountdown=-1
+  mode="levelover"
+  sfx(8)
+	end
+end
 
 function update_levelover()
-	if btn(5) then
-		nextlevel()
+ if	govercountdown<0 then
+		if btn(5) then
+			govercountdown=80
+			blink_s=1
+			sfx(15)
+		end
+	else
+		govercountdown-=1
+		fadeperc=(80-govercountdown)/80
+		doblink()
+		if govercountdown<=0 then
+			govercountdown=-1
+			blink_s=8
+			--fadeperc=0
+			nextlevel()
+		end
 	end
 end
 
@@ -1150,7 +1230,11 @@ function updateball(b)
 		b.y=nexty
 		
 		-- spawn trail
-		spawntrail(b.x,b.y)
+		if timer_mega > 0 then
+			spawnmtrail(b.x,b.y)
+		else
+			spawntrail(b.x,b.y)
+		end
 		
 		-- this is where we check
 		--- if the ball hits the edges
@@ -1168,6 +1252,7 @@ function updateball(b)
 		elseif nexty > 129 then
 			-- ball is lost
 			sfx(3)
+			spawndeath(b.x,b.y)
 			if #ball > 1 then
 				shake+=0.15
 				del(ball,b)
@@ -1200,6 +1285,8 @@ function _draw()
   draw_game()
 	elseif mode=="levelover" then
 		draw_levelover()
+	elseif mode=="leveloverwait" then
+		draw_game()
 	end
 
 	--fade the screen
@@ -1260,7 +1347,11 @@ function draw_game()
 		-- draw ball and paddle
 	print(message, 0, 0, 8)
 	for i=1,#ball do
-			circfill(ball[i].x,ball[i].y,ball_r,ball_color)
+			local ballc=ball_color
+			if timer_mega > 0 then
+				--ballc = 14
+			end
+			circfill(ball[i].x,ball[i].y,ball_r,ballc)
 			if ball[i].stuck then
 --				line(ball[i].x+ball[i].dx*4*arrm,
 --				ball[i].y+ball[i].dy*4*arrm,
@@ -1303,7 +1394,7 @@ end
 function draw_levelover()
 	rectfill(0,60,128,75,0)
 	print("stage clear!",47,62,7)
-	print("press ❎ to continue",30,68,6)
+	print("press ❎ to continue",30,68,blink_w)
 end
 
 __gfx__
@@ -1341,7 +1432,9 @@ __sfx__
 00100000000001c3501d3501f3502235023350193101c3202a3502c3502d35018320203502435027350293502c3502d3502e3502e3502e3500000000000000000000000000000000000000000000000000000000
 0003000023450264502b4502e45032450114000000000000197000000000000000000000000000000000000020600000000000037400000000000000000000000000000000000000000000000000000000000000
 000200001c7501c7501d7501d75000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00020000166501a6501d6501f65020650206501f6501c6501965016650126500e65015000100000f0002d6002c6002b6002a600286002560023600206001e6001c60019600176001560013600106000d6000a600
+0003000016670126700f6700e6700c6700b6700b6700a6700a6700967009670096700867008670086700767007670076700667006670066700667006670066500665006640076300562008610086100861007610
 00010000350502e050210501a050170503205034050310501d0501805017050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000400000405013050050501d05007050240600c0602c050120403104017030350301c030380301f0303b030240303e0202400026000000000000000000000000000000000000000000000000000000000000000
 000400003f6502e6501b6501765015630106200e6300c6200c6200a620096200b4000c40011400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00050000040500b050050500e05007050110600c06016050120401d04017030230301c030260301f0302a030240302c030260302e04029040310402b030260002900023000229001d90020900000000000000000
+0005000014f001af001ff0026f0029f002df002ff0031f0033f0034f0032f002df0028f0021f001df0017f0017f002af002ef002bf0027f0023f001ef0019f0018f001cf0023f0027f0022f001bf0014f0012f00
