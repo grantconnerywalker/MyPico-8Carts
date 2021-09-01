@@ -12,6 +12,7 @@ __lua__
 // 8. high score
 
 function _init()
+ cartdata("lazydevs_hero1")
 	cls()	
 	// state
 	message=""	
@@ -52,7 +53,13 @@ function _init()
 	lasthitx=0
 	lasthity=0
 	
-		--debug
+	--highscore
+	hs={}
+	loadhs()
+	hs[1]=1000
+	savehs()
+	
+	--debug
 	debug1=""
 end
 
@@ -1375,13 +1382,14 @@ function draw_game()
 	else
 		print("lives:"..lives,1,1,7)
 		print("score:"..score,40,1,7)
-	--	print("debug:"..debug1,80,1,7)
+	print("debug:"..debug1,80,1,7)
 	end
 end
 
 function draw_start()
 	cls(1)
-	print("pico hero breakout",30,40,7)
+	prinths(0)
+	print("pico hero breakout",30,70,7)
 	print("press ❎ to start",32,80,blink_g)
 end
 
@@ -1397,6 +1405,63 @@ function draw_levelover()
 	print("press ❎ to continue",30,68,blink_w)
 end
 
+-->8
+-----------------------------
+-------- high score ---------
+-----------------------------
+
+-- resets the high score list
+function reseths()
+	dset(0,500)
+	dset(1,400)
+	dset(2,300)
+	dset(3,200)
+	dset(4,100)
+	
+	dget(0)
+end
+
+function reseths()
+	-- create default values
+	-- create default values
+	hs={500,400,300,200,50}
+	savehs()
+end
+
+-- load the high score
+function loadhs()
+	local _slot
+	if dget(0)==1 then	
+		-- load the data
+		_slot=1
+		for i=1,5 do
+			hs[i]=dget(_slot)
+			_slot+=1
+		end
+	else
+		reseths()
+	end
+end
+
+function savehs()
+	local _slot
+	dset(0,1)
+	-- save the data
+	_slot=1
+	for i=1,5 do
+		dset(_slot, hs[i])
+		_slot+=1
+	end
+end
+
+--print the high score
+function prinths(_x)
+	for i=1,5 do
+		print(i.." - ",_x+30,10+7*i,7)
+		local _score=" "..hs[i]
+		print(_score,(_x+100)-(#_score*4),10+7*i,7)
+	end
+end
 __gfx__
 0000000006777760067777600677776006777760f677776f06777760067777600000000000000000000000000000000000000000000000000000000000000000
 00000000559944955576777555b33bb555c1c1c55508800555e222e5558288850000000000000000000000000000000000000000000000000000000000000000
