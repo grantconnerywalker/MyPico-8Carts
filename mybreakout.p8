@@ -14,6 +14,7 @@ __lua__
 function _init()
  cartdata("lazydevs_hero1")
 	cls()	
+	
 	// state
 	message=""	
 	mode="start"
@@ -25,7 +26,7 @@ function _init()
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
 	--levels[1]="i9b/p9pp9p/p9pp9p"
 	levels[1]="////x4b/s9s"
- levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
+ --levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
 
 	shake=0
 	
@@ -41,7 +42,7 @@ function _init()
 	startcountdown=-1
 	govercountdown=-1
 	
-	fadeperc=0
+	fadeperc=1
 	
 	arrm=1
 	arrm2=1
@@ -55,9 +56,16 @@ function _init()
 	
 	--highscore
 	hs={}
+	hs1={}
+	hs2={}
+	hs3={}
+	reseths() --for some reason need to reset first in our implementation
 	loadhs()
-	hs[1]=1000
-	savehs()
+	addhs(450,2,2,2)
+ hschars={"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"} 
+	hs_x=128
+	hs_dx=128
+	loghs=false
 	
 	--debug
 	debug1=""
@@ -313,8 +321,8 @@ function nextlevel()
 	
 	levelnum += 1
 	if levelnum > #levels then
-		--beaten the game, change
-		-- gameover to special screen
+		-- error. game about to load
+		-- a level that does not exist
 		startgame()
 	end
 	level = levels[levelnum]
@@ -397,10 +405,26 @@ function gameover()
 end
 
 function levelover()
- -- todo change sound
-	mode="leveloverwait"
+	mode="wait"
 	govercountdown=60
 	blink_s=16
+end
+
+function wingame()
+	mode="winnerwait"
+	govercountdown=60
+	blink_s=16
+	
+	-- determine score high enough
+	printh("\n\nchecking score")
+	printh(score)
+	printh(hs[5])
+	if score>hs[5] then
+		loghs=false
+		-- change above to true
+	else
+		loghs=false
+	end
 end
 
 function levelfinished()
@@ -989,16 +1013,40 @@ function _update60()
 		update_levelover()
 	elseif mode=="leveloverwait" then
 		update_leveloverwait()
+	elseif mode=="winner" then
+		update_winner()
+	elseif mode=="winnerwait" then
+		update_winnerwait()
 	end
 end
 
 function update_start()
+	-- slide the high score list
+	if hs_x!=hs_dx then
+		hs_x+=(hs_dx-hs_x)/5
+	end
+	
 	if startcountdown < 0 then
+	
+		-- fade in game
+		if fadeperc!=0 then
+			fadeperc-=0.05
+			if fadeperc<0 then
+				fadeperc=0
+			end
+		end
+
 		if btn(5) then
 			startcountdown=80
 			blink_s=1
 			sfx(13)
 			--startgame()
+		end
+		if btnp(0) then
+			hs_dx=0
+		end
+		if btnp(1) then
+			hs_dx=128
 		end
 	else
 		startcountdown-=1
@@ -1009,6 +1057,8 @@ function update_start()
 			blink_s=8
 		--	fadeperc=0
 			startgame()
+			hs_x=128
+			hs_dx=0
 		end
 	end
 end
@@ -1038,6 +1088,35 @@ function update_gameoverwait()
 	if govercountdown<=0 then
 		govercountdown=-1
   mode="gameover"
+	end
+end
+
+function update_winnerwait()
+	govercountdown-=1
+	if govercountdown<=0 then
+		govercountdown=-1
+  mode="winner"
+  sfx(8)
+	end
+end
+
+function update_winner()
+ if	govercountdown<0 then
+		if btn(5) then
+			govercountdown=80
+			blink_s=1
+			sfx(15)
+		end
+	else
+		govercountdown-=1
+		fadeperc=(80-govercountdown)/80
+		doblink()
+		if govercountdown<=0 then
+			govercountdown=-1
+			blink_s=8
+			--fadeperc=0
+			mode="start"
+		end
 	end
 end
 
@@ -1229,7 +1308,11 @@ function updateball(b)
 		-- check if win
 		if levelfinished() then
 			_draw()
-			levelover()
+			if levelnum >= #levels then
+				wingame()
+			else
+				levelover()
+			end
 		end
 		
 		-- move ball
@@ -1293,6 +1376,10 @@ function _draw()
 	elseif mode=="levelover" then
 		draw_levelover()
 	elseif mode=="leveloverwait" then
+		draw_game()
+	elseif mode=="winner" then
+		draw_winner()
+	elseif mode=="winnerwait" then
 		draw_game()
 	end
 
@@ -1387,10 +1474,11 @@ function draw_game()
 end
 
 function draw_start()
-	cls(1)
-	prinths(0)
-	print("pico hero breakout",30,70,7)
+	cls()
+	prinths(hs_x)
+	print("pico hero breakout",30+(hs_x-128),30,7)
 	print("press ❎ to start",32,80,blink_g)
+	print("press ⬅️ for hi-scores",22,90,3)
 end
 
 function draw_gameover()
@@ -1405,6 +1493,21 @@ function draw_levelover()
 	print("press ❎ to continue",30,68,blink_w)
 end
 
+function draw_winner()
+	if loghs then
+		--won, type name for score
+	else		
+		-- won but no high score
+		rectfill(0,30,128,75,0)
+		print("congratulations!",35,62,7)
+		print("you have beaten the game!",35,68,7)
+		print("but you did not achieve",35,74,7)
+		print("a high score",35,80,7)
+		print("try again?",35,86,7)
+		print("press ❎ for main menu",22,92,blink_w)
+	end
+end
+
 -->8
 -----------------------------
 -------- high score ---------
@@ -1412,32 +1515,58 @@ end
 
 -- resets the high score list
 function reseths()
-	dset(0,500)
-	dset(1,400)
-	dset(2,300)
-	dset(3,200)
-	dset(4,100)
+	hs={10,300,400,200,1000}
+	hs1={1,1,8,1,1}
+	hs2={2,5,1,9,15}
+	hs3={1,2,5,21,1}
 	
-	dget(0)
+	sorths()
+	savehs()
+	--dget(0)
 end
 
-function reseths()
-	-- create default values
-	-- create default values
-	hs={500,400,300,200,50}
-	savehs()
+-- add a new high score
+function addhs(_score,_c1,_c2,_c3)
+	add(hs,_score)
+	add(hs1,_c1)
+	add(hs2,_c2)
+	add(hs3,_c3)
+	sorths()
+end
+
+-- sort high score
+function sorths()
+ for i=1,#hs do
+  local j = i
+  while j > 1 and hs[j-1] < hs[j] do
+   hs[j],hs[j-1]=hs[j-1],hs[j]
+   hs1[j],hs1[j-1]=hs1[j-1],hs1[j]
+   hs2[j],hs2[j-1]=hs2[j-1],hs2[j]
+   hs3[j],hs3[j-1]=hs3[j-1],hs3[j]
+   j = j - 1
+  end
+ end
 end
 
 -- load the high score
 function loadhs()
-	local _slot
+	local _slot=0
 	if dget(0)==1 then	
 		-- load the data
-		_slot=1
+		_slot+=1
 		for i=1,5 do
+		 printh("\n\nprinting slots")
+		 printh(dget(_slot))
+		 printh(dget(_slot+1))
+		 printh(dget(_slot+2))
+		 printh(dget(_slot+3))
 			hs[i]=dget(_slot)
-			_slot+=1
+			hs1[i]=dget(_slot+1)
+			hs2[i]=dget(_slot+2)
+			hs3[i]=dget(_slot+3)
+			_slot+=4
 		end
+		sorths()
 	else
 		reseths()
 	end
@@ -1450,16 +1579,39 @@ function savehs()
 	_slot=1
 	for i=1,5 do
 		dset(_slot, hs[i])
-		_slot+=1
+		dset(_slot+1, hs1[i])
+		dset(_slot+2, hs2[i])
+		dset(_slot+3, hs3[i])
+		_slot+=4
 	end
 end
 
 --print the high score
 function prinths(_x)
+	rectfill(_x+30,4,_x+99,12,8)
+	print("high scores",_x+45,6,7)
 	for i=1,5 do
-		print(i.." - ",_x+30,10+7*i,7)
+		-- player rank
+		print(i.." - ",_x+30,10+7*i,5)
+		
+		local _c=7
+		if i==1 then
+		 _c=blink_w
+		end
+		
+  local _name
+  _name = hschars[hs1[i]]
+  printh("\n\n new logs")
+  printh("hs1[i] "..hs1[i])
+  printh(_name)
+  _name = _name..hschars[hs2[i]]
+  _name = _name..hschars[hs3[i]]
+		--print(hs[i]..hs2[i]..hs3[i],_x+45,10+7*i,7)
+		print(_name,_x+45,10+7*i,_c)
+		
+		-- player score
 		local _score=" "..hs[i]
-		print(_score,(_x+100)-(#_score*4),10+7*i,7)
+		print(_score,(_x+100)-(#_score*4),10+7*i,_c)
 	end
 end
 __gfx__
