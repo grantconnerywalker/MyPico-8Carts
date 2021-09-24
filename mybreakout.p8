@@ -36,6 +36,9 @@ function _init()
 	blink_w=7
 	blink_w_i=1
 	
+	blink_b=7
+	blink_b_i=1
+	
 	blink_f=0
 	blink_s=8
 	
@@ -420,10 +423,10 @@ function wingame()
 	printh(score)
 	printh(hs[5])
 	if score>hs[5] then
-		loghs=false
-		-- change above to true
+		loghs=true
 	else
-		loghs=false
+		loghs=true
+		-- set above to false
 	end
 end
 
@@ -633,6 +636,7 @@ end
 function doblink()
 	local g_seq={3,11,7,11}
 	local w_seq={5,6,7,6}
+	local b_seq={9,10,7,10}
 	
 	-- text blink
 	blink_f+=1
@@ -649,6 +653,12 @@ function doblink()
 			blink_w_i=1
 		end
 		blink_w=w_seq[blink_w_i]
+		
+		blink_b_i+=1
+		if blink_b_i > #b_seq then
+			blink_b_i=1
+		end
+		blink_b=b_seq[blink_b_i]
 	end
 	
 	-- trajectory preview animation
@@ -1496,15 +1506,25 @@ end
 function draw_winner()
 	if loghs then
 		--won, type name for score
+		local _y=30
+		rectfill(0,_y,128,_y+52,12)
+		print("★★congratulations!★★",17,_y+4,1)
+		print("you have beaten the game!",15,_y+14,7)
+		print("enter your initials for",18,_y+20,7)
+		print("the high score list",28,_y+26,7)
+		print("aaa",57,_y+35,blink_w)
+		
+		print("use ⬅️➡️❎🅾️",39,_y+44,6)
 	else		
 		-- won but no high score
-		rectfill(0,30,128,75,0)
-		print("congratulations!",35,62,7)
-		print("you have beaten the game!",35,68,7)
-		print("but you did not achieve",35,74,7)
-		print("a high score",35,80,7)
-		print("try again?",35,86,7)
-		print("press ❎ for main menu",22,92,blink_w)
+		local _y=30
+		rectfill(0,_y,128,_y+52,12)
+		print("★ congratulations! ★",22,_y+4,1)
+		print("you have beaten the game!",15,_y+14,7)
+		print("but you did not achieve",18,_y+20,7)
+		print("a high score",38,_y+26,7)
+		print("try again?",42,_y+32,7)
+		print("press ❎ for main menu",22,_y+44,blink_b)
 	end
 end
 
