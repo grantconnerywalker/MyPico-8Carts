@@ -70,6 +70,11 @@ function _init()
 	hs_dx=128
 	loghs=false
 	
+	--typing in initials
+	nitials={1,1,1}
+	nit_sel=1
+	nit_conf=false
+	
 	--debug
 	debug1=""
 end
@@ -1105,6 +1110,7 @@ function update_winnerwait()
 	govercountdown-=1
 	if govercountdown<=0 then
 		govercountdown=-1
+		blink_s=4
   mode="winner"
   sfx(8)
 	end
@@ -1112,10 +1118,64 @@ end
 
 function update_winner()
  if	govercountdown<0 then
-		if btn(5) then
-			govercountdown=80
-			blink_s=1
-			sfx(15)
+ 	-- initials selection buttons
+ 	if loghs then
+ 	 if btnp(0) then
+ 	 	--left
+ 	 	nit_sel-=1
+ 	 	if nit_sel<1 then
+ 	 		nit_sel=3
+ 	 	end
+ 		end
+ 		if btnp(1) then
+ 			--right
+ 			nit_conf=false
+ 			nit_sel+=1
+ 			if nit_sel>3 then
+ 				nit_sel=1
+ 			end
+ 		end
+ 		if btnp(2) then
+ 			--up
+ 			nit_conf=false
+ 			nitials[nit_sel]-=1
+ 			if nitials[nit_sel]<1 then
+ 				nitials[nit_sel]=#hschars
+ 			end
+ 		end
+ 		if btnp(3) then
+ 			--down
+ 			nit_conf=false
+ 			nitials[nit_sel]+=1
+ 			if nitials[nit_sel]>#hschars then
+ 				nitials[nit_sel]=1
+ 			end
+ 		end
+ 		if btnp(5) then
+ 			--x, confirm initials
+ 			if nit_conf then
+ 				--addhs(points/score,nitials[1],nitials[2],nitials[3])
+					--savehs()
+	 			govercountdown=80
+					blink_s=1
+					sfx(15)
+				else
+				 nit_conf=true
+				end
+ 		end
+ 		if btnp(4) then
+ 			if nit_conf then
+ 			 nit_conf=false
+ 			 --sfx
+ 			end
+ 		end
+ 		
+ 	else
+			if btn(5) then
+				govercountdown=80
+				blink_s=1
+				sfx(15)
+			end
 		end
 	else
 		govercountdown-=1
@@ -1512,9 +1572,22 @@ function draw_winner()
 		print("you have beaten the game!",15,_y+14,7)
 		print("enter your initials for",18,_y+20,7)
 		print("the high score list",28,_y+26,7)
-		print("aaa",57,_y+35,blink_w)
+		local _colors = {7,7,7}
+		if nit_conf then
+			_colors = {10,10,10}
+		else
+			_colors[nit_sel] = blink_b
+		end
 		
-		print("use ⬅️➡️❎🅾️",39,_y+44,6)
+		print(hschars[nitials[1]],57,_y+35,_colors[1])
+		print(hschars[nitials[2]],61,_y+35,_colors[2])
+		print(hschars[nitials[3]],65,_y+35,_colors[3])
+		--print("aaa",57,_y+35,blink_w)
+		if nit_conf then
+			print("press ❎ to confirm",29,_y+44,blink_b)
+		else
+			print("use ⬅️➡️⬆️⬇️❎",34,_y+44,6)
+		end
 	else		
 		-- won but no high score
 		local _y=30
