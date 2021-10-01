@@ -59,12 +59,13 @@ function _init()
 	
 	--highscore
 	hs={}
+	hsb={true,false,false,false,false}
 	hs1={}
 	hs2={}
 	hs3={}
 	reseths() --for some reason need to reset first in our implementation
 	loadhs()
-	addhs(450,2,2,2)
+	--addhs(450,2,2,2)
  hschars={"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"} 
 	hs_x=128
 	hs_dx=128
@@ -260,7 +261,8 @@ function explodebrick(_i)
 		and abs(bricks[j].x-bricks[_i].x) <= (brick_w+2)
 		and abs(bricks[j].y-bricks[_i].y) <= (brick_h+2)
 		then
-			hitbrick(j, false)
+			--hitbrick(j, false)
+			hitbrick(j, true) -- changed to true to test high score
 			--shake+=0.4
 			--if shake>1 then
 				--shake = 1
@@ -410,6 +412,7 @@ function gameover()
 	mode="gameoverwait"
 	govercountdown=60
 	blink_s=16
+	resethsb()
 end
 
 function levelover()
@@ -430,8 +433,8 @@ function wingame()
 	if score>hs[5] then
 		loghs=true
 	else
-		loghs=true
-		-- set above to false
+		loghs=false
+		resethsb()
 	end
 end
 
@@ -1039,6 +1042,9 @@ function update_start()
 	-- slide the high score list
 	if hs_x!=hs_dx then
 		hs_x+=(hs_dx-hs_x)/5
+		if abs(hs_dx-hs_x)<0.3 then
+			hs_x=hs_dx
+		end
 	end
 	
 	if startcountdown < 0 then
@@ -1058,10 +1064,16 @@ function update_start()
 			--startgame()
 		end
 		if btnp(0) then
-			hs_dx=0
+			if hs_dx!=0 then
+				hs_dx=0
+				sfx(20)
+			end
 		end
 		if btnp(1) then
-			hs_dx=128
+			if hs_dx!=128 then
+				hs_dx=128
+				sfx(20)
+			end
 		end
 	else
 		startcountdown-=1
@@ -1121,6 +1133,7 @@ function update_winner()
  	-- initials selection buttons
  	if loghs then
  	 if btnp(0) then
+ 	  sfx(16)
  	 	--left
  	 	nit_sel-=1
  	 	if nit_sel<1 then
@@ -1129,6 +1142,7 @@ function update_winner()
  		end
  		if btnp(1) then
  			--right
+ 			sfx(16)
  			nit_conf=false
  			nit_sel+=1
  			if nit_sel>3 then
@@ -1137,6 +1151,7 @@ function update_winner()
  		end
  		if btnp(2) then
  			--up
+ 			sfx(17)
  			nit_conf=false
  			nitials[nit_sel]-=1
  			if nitials[nit_sel]<1 then
@@ -1145,6 +1160,7 @@ function update_winner()
  		end
  		if btnp(3) then
  			--down
+ 			sfx(17)
  			nit_conf=false
  			nitials[nit_sel]+=1
  			if nitials[nit_sel]>#hschars then
@@ -1153,9 +1169,10 @@ function update_winner()
  		end
  		if btnp(5) then
  			--x, confirm initials
+ 			sfx(18)
  			if nit_conf then
- 				--addhs(points/score,nitials[1],nitials[2],nitials[3])
-					--savehs()
+ 				addhs(score,nitials[1],nitials[2],nitials[3])
+					savehs()
 	 			govercountdown=80
 					blink_s=1
 					sfx(15)
@@ -1166,7 +1183,7 @@ function update_winner()
  		if btnp(4) then
  			if nit_conf then
  			 nit_conf=false
- 			 --sfx
+ 			 sfx(19)
  			end
  		end
  		
@@ -1548,7 +1565,9 @@ function draw_start()
 	prinths(hs_x)
 	print("pico hero breakout",30+(hs_x-128),30,7)
 	print("press ❎ to start",32,80,blink_g)
-	print("press ⬅️ for hi-scores",22,90,3)
+	if hs_x==128 then
+		print("press ⬅️ for hi-scores",22,90,3)
+	end
 end
 
 function draw_gameover()
@@ -1574,7 +1593,7 @@ function draw_winner()
 		print("the high score list",28,_y+26,7)
 		local _colors = {7,7,7}
 		if nit_conf then
-			_colors = {10,10,10}
+			_colors = {blink_b,blink_b,blink_b}
 		else
 			_colors[nit_sel] = blink_b
 		end
@@ -1608,11 +1627,12 @@ end
 
 -- resets the high score list
 function reseths()
-	hs={10,300,400,200,1000}
+	--hs={10,300,400,200,1000}
+	hs={1000,2,3,4,5}
 	hs1={1,1,8,1,1}
 	hs2={2,5,1,9,15}
 	hs3={1,2,5,21,1}
-	
+	hsb={true,false,false,false,false}
 	sorths()
 	savehs()
 	--dget(0)
@@ -1624,7 +1644,18 @@ function addhs(_score,_c1,_c2,_c3)
 	add(hs1,_c1)
 	add(hs2,_c2)
 	add(hs3,_c3)
+	for i=1,#hsb do
+		hsb[i]=false
+	end
+	add(hsb,true)
 	sorths()
+end
+
+function resethsb()
+	for i=1,#hsb do
+		hsb[i]=false
+	end
+	hsb[1]=true
 end
 
 -- sort high score
@@ -1636,6 +1667,7 @@ function sorths()
    hs1[j],hs1[j-1]=hs1[j-1],hs1[j]
    hs2[j],hs2[j-1]=hs2[j-1],hs2[j]
    hs3[j],hs3[j-1]=hs3[j-1],hs3[j]
+   hsb[j],hsb[j-1]=hsb[j-1],hsb[j]
    j = j - 1
   end
  end
@@ -1688,7 +1720,7 @@ function prinths(_x)
 		print(i.." - ",_x+30,10+7*i,5)
 		
 		local _c=7
-		if i==1 then
+		if hsb[i] then
 		 _c=blink_w
 		end
 		
@@ -1747,4 +1779,8 @@ __sfx__
 000400000405013050050501d05007050240600c0602c050120403104017030350301c030380301f0303b030240303e0202400026000000000000000000000000000000000000000000000000000000000000000
 000400003f6502e6501b6501765015630106200e6300c6200c6200a620096200b4000c40011400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00050000040500b050050500e05007050110600c06016050120401d04017030230301c030260301f0302a030240302c030260302e04029040310402b030260002900023000229001d90020900000000000000000
-0005000014f001af001ff0026f0029f002df002ff0031f0033f0034f0032f002df0028f0021f001df0017f0017f002af002ef002bf0027f0023f001ef0019f0018f001cf0023f0027f0022f001bf0014f0012f00
+000500003a1403d1401ff0026f0029f002df002ff0031f0033f0034f0032f002df0028f0021f001df0017f0017f002af002ef002bf0027f0023f001ef0019f0018f001cf0023f0027f0022f001bf0014f0012f00
+000500000f14010140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000500002c040310402f0400100000000310000000000000000000000000000230001c000260001f0002a000240002c000260002e00029000310002b000260002900023000229001d90020900000000000000000
+000500002e040310402c0400100000000310000000000000000000000000000230001c000260001f0002a000240002c000260002e00029000310002b000260002900023000229001d90020900000000000000000
+0001000010150121501415016150181501b1501f15025150391503b1503b1503c1503c150381502d150281502515022150211501f1501d1501c1501b1501a150151500e1500c1501700016000140001300012000
