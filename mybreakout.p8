@@ -12,6 +12,7 @@ __lua__
 // 8. high score
 
 function _init()
+	printh("hello!")
  cartdata("lazydevs_hero1")
 	cls()	
 	
@@ -24,9 +25,9 @@ function _init()
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
-	levels[1]="i9b/p9pp9p/p9pp9p"
-	--levels[1]="p5/i5/h5//x4b/s9s"
- --levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
+	--levels[1]="i9b/p9pp9p/p9pp9p"
+	levels[1]="/////x4b/s9s"
+ levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
 
 	shake=0
 	
@@ -44,7 +45,7 @@ function _init()
 	
 	startcountdown=-1
 	govercountdown=-1
-	
+	goverrestart=false
 	fadeperc=1
 	
 	arrm=1
@@ -420,20 +421,19 @@ function gameover()
 end
 
 function levelover()
-	mode="wait"
+	printh("levelover()")
+	mode="leveloverwait"
 	govercountdown=60
 	blink_s=16
 end
 
 function wingame()
+ printh("wingame()")
 	mode="winnerwait"
 	govercountdown=60
 	blink_s=16
 	
 	-- determine score high enough
-	printh("\n\nchecking score")
-	printh(score)
-	printh(hs[5])
 	if score>hs[5] then
 		loghs=true
 	else
@@ -443,10 +443,11 @@ function wingame()
 end
 
 function levelfinished()
+	printh("levelfinished()")
 	if #bricks == 0 then return true end
 	
 	for i=1,#bricks do
-		if bricks[i].v == true and bricks[i].t != "i" then
+		if bricks[i].v == true and bricks[i].t != "i" then			
 			return false
 		end
 	end
@@ -1095,27 +1096,45 @@ function update_start()
 end
 
 function update_gameover()
+	printh("in update_gameover")
  if	govercountdown<0 then
+ 	printh("govercountdown<0")
+  if btn(4) then
+			govercountdown=80
+			blink_s=1
+			sfx(13)
+		 goverrestart=false
+		end
 		if btn(5) then
 			govercountdown=80
 			blink_s=1
 			sfx(13)
+			goverrestart=true
 		end
 	else
+		printh("govercountdown>0")
 		govercountdown-=1
 		fadeperc=(80-govercountdown)/80
 		doblink()
 		if govercountdown<=0 then
-			govercountdown=-1
-			blink_s=8
-			--fadeperc=0
-			startgame()
+			if goverrestart then
+			 govercountdown=-1
+			 blink_s=8
+	 		startgame()
+	 	else
+	 		govercountdown=-1
+			 blink_s=8
+	 		mode="start"
+	 		hs_x=128
+	 		hs_dx=128
+			end
 		end
 	end
 end
 
 function update_gameoverwait()
 	govercountdown-=1
+	printh("update_gameoverwait govercountdown "..govercountdown)
 	if govercountdown<=0 then
 		govercountdown=-1
   mode="gameover"
@@ -1213,6 +1232,7 @@ end
 
 function update_leveloverwait()
 	govercountdown-=1
+	printh("update_leveloverwait govercountdown "..govercountdown)
 	if govercountdown<=0 then
 		govercountdown=-1
   mode="levelover"
@@ -1595,9 +1615,23 @@ function draw_start()
 end
 
 function draw_gameover()
-	rectfill(0,60,128,75,0)
+	local _c1, _c2
+	rectfill(0,60,128,81,0)
 	print("game over!",47,62,7)
-	print("press ❎ to restart",30,68,blink_w)
+	if govercountdown<0 then
+		_c1=blink_w
+		_c2=blink_w
+	else
+		if goverrestart then
+		 _c1=blink_w
+		 _c2=5
+		else
+			_c1=5
+		 _c2=blink_w
+		end
+	end
+	print("press ❎ to restart",30,68,_c1)
+ print("press 🅾️ for main menu",23,74,_c2)
 end
 
 function draw_levelover()
@@ -1704,11 +1738,6 @@ function loadhs()
 		-- load the data
 		_slot+=1
 		for i=1,5 do
-		 printh("\n\nprinting slots")
-		 printh(dget(_slot))
-		 printh(dget(_slot+1))
-		 printh(dget(_slot+2))
-		 printh(dget(_slot+3))
 			hs[i]=dget(_slot)
 			hs1[i]=dget(_slot+1)
 			hs2[i]=dget(_slot+2)
@@ -1750,9 +1779,6 @@ function prinths(_x)
 		
   local _name
   _name = hschars[hs1[i]]
-  printh("\n\n new logs")
-  printh("hs1[i] "..hs1[i])
-  printh(_name)
   _name = _name..hschars[hs2[i]]
   _name = _name..hschars[hs3[i]]
 		--print(hs[i]..hs2[i]..hs3[i],_x+45,10+7*i,7)
