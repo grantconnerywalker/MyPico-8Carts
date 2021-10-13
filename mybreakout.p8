@@ -77,6 +77,14 @@ function _init()
 	nit_sel=1
 	nit_conf=false
 	
+	--sash / banner ui
+	sash_w=0
+	sash_dw=0
+	sash_c=8
+	sash_text="ohai"
+	sash_frames=0
+	sash_v=false
+	
 	--debug
 	debug1=""
 end
@@ -313,14 +321,14 @@ function startgame()
 	level = levels[levelnum]
 	buildbricks(level)
 	
-	lives=0
+	lives=2
 	score=0
 	multiplier=1
 	pointsmult=1
 	
 	sticky=false
 	sticky_x=flr(pad_w/2)
-	
+
 	-- check where this is called
 	-- remove if necessary if it works in here
 	serveball()
@@ -467,6 +475,7 @@ function serveball()
 	pointsmult=1
 	
 	resetpills()
+	showsash("stage "..levelnum,0)	
 	
 	sticky_x=flr(pad_w/2)
 	
@@ -630,6 +639,20 @@ end
 -----------------------------
 -------- juicy stuff --------
 -----------------------------
+
+function showsash(_t,_c)
+	--todo also animate it warping in
+		--sash / banner ui
+	sash_w=0
+	sash_dw=9
+	sash_c=_c
+	sash_text=_t
+	sash_frames=0
+	sash_v=true
+	printh("_t ".._t)
+	printh("_c ".._c)
+end
+
 function doshake()
 	-- -16 to +16
 	local shakex=16-rnd(32)
@@ -1024,6 +1047,7 @@ function _update60()
 	doblink()
 	doshake()
 	updateparts()
+	update_sash()
 	if mode=="game" then
 		update_game()
 	elseif mode=="start" then
@@ -1138,6 +1162,24 @@ function update_gameoverwait()
 	if govercountdown<=0 then
 		govercountdown=-1
   mode="gameover"
+	end
+end
+
+function update_sash()
+	if sash_v then
+		sash_frames+=1
+		--animate width
+		sash_w+=(sash_dw-sash_w)/5
+		if abs(sash_dw-sash_w)<0.3 then
+			sash_w=sash_dw
+		end
+		--make sash go away
+		if sash_frames>60 then
+			sash_dw=0
+		end
+		if sash_frames>90 then
+			sash_v=false
+		end
 	end
 end
 
@@ -1461,6 +1503,7 @@ function updateball(b)
 				shake+=0.4
 				lives-=1
 				if lives < 0 then
+					lives=0
 					gameover()
 				else
 					serveball()
@@ -1598,6 +1641,8 @@ function draw_game()
 		print("score:"..score,40,1,7)
 	print("debug:"..debug1,80,1,7)
 	end
+	
+	draw_sash()
 end
 
 function draw_start()
@@ -1638,6 +1683,12 @@ function draw_levelover()
 	rectfill(0,60,128,75,0)
 	print("stage clear!",47,62,7)
 	print("press ❎ to continue",30,68,blink_w)
+end
+
+function draw_sash()
+	if sash_v then
+		rectfill(0,64-(sash_w),128,64+sash_w,sash_c)
+	end
 end
 
 function draw_winner()
