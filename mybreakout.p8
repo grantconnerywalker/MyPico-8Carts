@@ -80,10 +80,15 @@ function _init()
 	--sash / banner ui
 	sash_w=0
 	sash_dw=0
+	sash_tx=0
+	sash_tdx=0
 	sash_c=8
+	sash_tc=7
 	sash_text="ohai"
 	sash_frames=0
 	sash_v=false
+	sash_delay_w=0
+	sash_delay_t=0
 	
 	--debug
 	debug1=""
@@ -113,9 +118,11 @@ function powerupget(_p)
 	if _p==1 then
 		-- slow down
 		timer_slow = 900
+		showsash("slowdown!",9,4)
 	elseif _p==2 then
 		-- life
 		lives+=1
+		showsash("extra life!",7,6)
 	elseif _p==3 then
 	 -- catch
 	 -- check if there are stuck balls
@@ -128,24 +135,28 @@ function powerupget(_p)
 	 if hasstuck==false then
 	 	sticky=true
 	 end
+	 showsash("sticky!",11,3)
 	elseif _p==4 then
 		-- expand
 		timer_expand = 900
 		timer_reduce = 0
+	 showsash("expand!",12,1)
 	elseif _p==5 then
 		-- reduce
 		timer_reduce = 900
 		timer_expand = 0
+		showsash("reduce!!!",0,8)
 	elseif _p==6 then
 		-- megaball
 		timer_mega=300
+		showsash("megaball!",14,2)
 	elseif _p==7 then
 		-- multiball
 		multiball()
+		showsash("multiball!",10,9)
 	end
 end
 
--- todo fix indestructible b
 function hitbrick(_i,_combo)
 	local fshtime=8
 	-- standard brick
@@ -329,6 +340,8 @@ function startgame()
 	sticky=false
 	sticky_x=flr(pad_w/2)
 
+	showsash("stage "..levelnum,0,7)	
+
 	-- check where this is called
 	-- remove if necessary if it works in here
 	serveball()
@@ -353,6 +366,7 @@ function nextlevel()
 	
 	sticky=false
 	
+		showsash("stage "..levelnum,0,7)	
 	serveball()
 end
 	
@@ -475,7 +489,6 @@ function serveball()
 	pointsmult=1
 	
 	resetpills()
-	showsash("stage "..levelnum,0)	
 	
 	sticky_x=flr(pad_w/2)
 	
@@ -640,15 +653,20 @@ end
 -------- juicy stuff --------
 -----------------------------
 
-function showsash(_t,_c)
+function showsash(_t,_c,_tc)
 	--todo also animate it warping in
 		--sash / banner ui
 	sash_w=0
-	sash_dw=9
+	sash_dw=4
 	sash_c=_c
 	sash_text=_t
 	sash_frames=0
 	sash_v=true
+	sash_tx=-#sash_text*4
+	sash_tdx=64-#sash_text*2
+	sash_delay_w=0
+	sash_delay_t=5
+	sash_tc=_tc
 	printh("_t ".._t)
 	printh("_c ".._c)
 end
@@ -1169,15 +1187,31 @@ function update_sash()
 	if sash_v then
 		sash_frames+=1
 		--animate width
-		sash_w+=(sash_dw-sash_w)/5
-		if abs(sash_dw-sash_w)<0.3 then
-			sash_w=sash_dw
+		if sash_delay_w>0 then
+			sash_delay_w-=1
+		else
+			sash_w+=(sash_dw-sash_w)/5
+			if abs(sash_dw-sash_w)<0.3 then
+				sash_w=sash_dw
+			end
+		end
+		--animate text
+		if sash_delay_t>0 then
+			sash_delay_t-=1
+		else
+			sash_tx+=(sash_tdx-sash_tx)/10
+			if abs(sash_tdx-sash_tx)<0.3 then
+				sash_tx=sash_tdx
+			end
 		end
 		--make sash go away
-		if sash_frames>60 then
+		if sash_frames==75 then
 			sash_dw=0
+			sash_tdx=160
+			sash_delay_w=15
+	  sash_delay_t=0
 		end
-		if sash_frames>90 then
+		if sash_frames>115 then
 			sash_v=false
 		end
 	end
@@ -1688,6 +1722,7 @@ end
 function draw_sash()
 	if sash_v then
 		rectfill(0,64-(sash_w),128,64+sash_w,sash_c)
+		print(sash_text,sash_tx,62,sash_tc)
 	end
 end
 
