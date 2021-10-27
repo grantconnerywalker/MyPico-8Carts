@@ -84,6 +84,9 @@ function _init()
 	sash_delay_w=0
 	sash_delay_t=0
 	
+	parttimer=0
+	partdx=0.1
+	
 	--debug
 	debug1=""
 end
@@ -931,7 +934,7 @@ end
 -- type 1 - gravity pixel
 -- type 2 - ball of smoke
 -- type 3 - rotating sprite
-
+-- type 4 - blue rotating
 -- update particles
 function updateparts()
 	local _p
@@ -959,12 +962,12 @@ function updateparts()
 			--end
 			
 			-- apply gravity
-			if _p.type==1 or _p.type==3 then
+			if _p.type==1 or _p.type==3 or _p.type==4 then
 				_p.dy+=0.05
 			end
 
 			-- rotate sprite
-			if _p.type==3 then
+			if _p.type==3 or _p.type==4 then
 				_p.rottimer+=1
 				if _p.rottimer>5 then
 					_p.rot+=1
@@ -1003,7 +1006,7 @@ function drawparts()
 			pset(_p.x,_p.y,_p.col)
 		elseif _p.type==2 then
 			circfill(_p.x,_p.y,_p.s,_p.col)
-		elseif _p.type==3 then
+		elseif _p.type==3 or _p.type==4 then
 			local _fx,_fy
 			--type 3 => sprite
 			if _p.rot==1 then
@@ -1022,7 +1025,11 @@ function drawparts()
 				_fx=false
 				_fy=false
 			end
+			if _p.type==4 then
+				pal(7,1)
+			end
 			spr(_p.col,_p.x,_p.y,1,1,_fx,_fy)
+			pal()
 		end
 	end
 end
@@ -1090,6 +1097,14 @@ function _update60()
 end
 
 function update_start()
+	-- raining particles
+	parttimer+=1
+	if parttimer>=rnd(180,360) then
+		partdx = -partdx
+		parttimer=0
+	end
+	addpart(flr(rnd(128)),0,partdx,0.1+rnd(1),0,1000000,{1},0)
+
 	-- slide the high score list
 	if hs_x!=hs_dx then
 		hs_x+=(hs_dx-hs_x)/5
@@ -1692,6 +1707,10 @@ end
 
 function draw_start()
 	cls()
+	
+	-- particles
+	drawparts()
+	
 	prinths(hs_x)
 	-- draw logo
 	palt(1, true)
