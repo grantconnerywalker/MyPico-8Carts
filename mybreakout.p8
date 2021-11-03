@@ -21,7 +21,7 @@ function _init()
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
 	--levels[1]="i9b/p9pp9p/p9pp9p"
 	levels[1]="/////x4b/s9s"
- levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
+ --levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
 
 	shake=0
 	
@@ -779,7 +779,7 @@ function addpart(_x,_y,_dx,_dy,_type,_maxage,_col,_s)
 	_p.dy=_dy
 	_p.type=_type
 	_p.maxage=_maxage
---	_p.col=0
+ _p.col=_col[1]
 	
 	_p.colarr=_col
 	_p.age=0
@@ -935,6 +935,7 @@ end
 -- type 2 - ball of smoke
 -- type 3 - rotating sprite
 -- type 4 - blue rotating
+-- type 5 - gravity smoke
 -- update particles
 function updateparts()
 	local _p
@@ -965,6 +966,13 @@ function updateparts()
 			if _p.type==1 or _p.type==3 or _p.type==4 then
 				_p.dy+=0.05
 			end
+			
+			-- apply low gravity
+			if _p.type==5 then
+				if abs(_p.dy)<1 then
+					_p.dy+=0.01
+				end
+			end
 
 			-- rotate sprite
 			if _p.type==3 or _p.type==4 then
@@ -979,7 +987,7 @@ function updateparts()
 			end
 					
 			-- shrink
-			if _p.type == 2 then
+			if _p.type == 2 or _p.type==5 then
 				local _ci=1-(_p.age/_p.maxage)
 				_p.s=_ci*_p.os
 			end
@@ -1004,7 +1012,7 @@ function drawparts()
 		_p=part[i]
 		if _p.type==0 or _p.type==1 then
 			pset(_p.x,_p.y,_p.col)
-		elseif _p.type==2 then
+		elseif _p.type==2 or _p.type==5 then
 			circfill(_p.x,_p.y,_p.s,_p.col)
 		elseif _p.type==3 or _p.type==4 then
 			local _fx,_fy
@@ -1247,6 +1255,17 @@ function update_winnerwait()
 end
 
 function update_winner()
+	local _ang = rnd()
+	local _dx = sin(_ang)*(rnd(0.5))
+	local _dy = cos(_ang)*(rnd(0.5))
+	local _mycol={12,12,5,5,0}
+	local _toprow=30
+	local _btmrow=_toprow+52
+	
+	--addpart(_x,_y,_dx,_dy,2,15+rnd(15),{7,6,5},1+rnd(2))
+	addpart(flr(rnd(128)),_toprow,_dx,_dy,5,120+rnd(15),_mycol,3+rnd(6))
+	addpart(flr(rnd(128)),_btmrow,_dx,_dy,5,120+rnd(15),_mycol,3+rnd(6))
+
  if	govercountdown<0 then
  	-- initials selection buttons
  	if loghs then
@@ -1724,6 +1743,9 @@ function draw_start()
 end
 
 function draw_gameover()
+	-- draw particles
+	drawparts()
+
 	local _c1, _c2
 	rectfill(0,60,128,81,0)
 	print("game over!",47,62,7)
@@ -1757,6 +1779,10 @@ function draw_sash()
 end
 
 function draw_winner()
+	--draw particles
+	draw_game()
+	drawparts()
+	
 	if loghs then
 		--won, type name for score
 		local _y=30
