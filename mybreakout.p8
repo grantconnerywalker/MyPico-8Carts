@@ -24,9 +24,9 @@ function _init()
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
-	--levels[1]="i9b/p9pp9p/p9pp9p"
+	levels[1]="i9b/p9pp9p/p9pp9p"
 	--levels[1]="/////x4b/s9s"
-	levels[1]="i9b//x4b//i6b"
+ --	levels[1]="i9b//x4b//i6b"
  levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
 
 	shake=0
@@ -241,6 +241,15 @@ function boostchain()
 	end
 	multiplier+=1
 end
+
+--get points
+--function getpoints(_p)
+--	if timer_reduce <= then
+--	 score+=(_p*multiplier*pointsmult)*4
+--	else
+--		score+=_p*multiplier*pointsmult
+--	end
+--end
 
 function spawnpill(_x,_y)
 	-- 7 because 7 powerups
@@ -622,6 +631,13 @@ function move_paddle()
 	if btnp(5) then
 		releasestuck()
 	end
+	if btnp(2) then
+  nextlevel()
+ end
+ if btnp(3) then
+  -- todo
+  --previouslevel()
+ end
 	-- deceleration
 	if not(buttpress) then
 		pad_dx/=1.3 -- make this into variable pad_decel
@@ -1450,8 +1466,10 @@ function update_game()
 
 	-- big ball loop
 	for i=#ball,1,-1 do
+		-- check if paddle rammed ball
+		padramcheck(ball[i])		
 		--updateball(ball[i])
-		updateball(i)		
+		updateball(i)
 	end
 	
 	-- move pills
@@ -1729,6 +1747,8 @@ function draw_game()
 	-- particles
 	drawparts()
 	
+	draw_sash()
+	
 	-- draw pills
 	for i=1,#pills do
 		palt(0,false)
@@ -1778,8 +1798,6 @@ function draw_game()
 		print(multiplier.."x",90,1,7)
 		--print("debug:"..debug1,80,1,7)
 	end
-	
-	draw_sash()
 end
 
 function draw_start()
@@ -2189,6 +2207,7 @@ function collide(_b,_c)
   --pad collision
   ---------------- 
   multiplier=1
+  _b.rammed=false
   --change angle
   if abs(pad_dx)>2 and _c.d=="top" then
    if sign(pad_dx)==sign(_b.dx) then
@@ -2211,8 +2230,8 @@ function collide(_b,_c)
    sticky_x = _b.x-pad_x
   end
   --puft and sound
-  sfx(1)
-  spawnpuft(_b.x,_b.y)  
+	 sfx(1)
+ 	spawnpuft(_b.x,_b.y)  
  elseif _c.t=="brick" then
   ----------------
   --brick collision
@@ -2235,9 +2254,9 @@ function dist(x1,y1,x2,y2)
 end
 
 function getpadbox()
- local _l=pad_x-(pad_w/2)
+ local _l=flr(pad_x-(pad_w/2))
  --local _l=pad_x
- local _r=pad_x+(pad_w/2)
+ local _r=_l+pad_w
  --local _r=pad_x+pad_w
  local _t=pad_y
  local _b=pad_y+pad_h
@@ -2251,6 +2270,47 @@ function getbrickbox(_b)
  local _b=_b.y+brick_h
  return {left=_l,right=_r,top=_t,bottom=_b} 
 end 
+
+function padramcheck(_b)
+	if _b.stuck then
+		return
+	end
+	local _pbox=getpadbox()
+	if box_box(_pbox.left+1,
+												_pbox.top+1,
+												pad_w-2,
+												pad_w,
+												_b.x-ball_r,
+												_b.y-ball_r,
+												ball_r*2,
+												ball_r*2) then
+		if _b.dy<0 then
+			-- ball flying up; ignore
+			return
+		end
+		--change speed of ball
+		if sign(_b.dx)==sign(pad_dx) then
+			_b.dx+=(pad_dx*2)
+		else
+			_b.dx=-_b.dx
+			_b.dx+=(pad_dx*2)
+		end
+		
+		--reset ball position
+		if _b.x<pad_x then
+			_b.x=_pbox.left-ball_r
+		else
+			_b.x=_pbox.right+ball_r		
+		end
+		
+		--puft and sound
+  if _b.rammed!=true then
+	  sfx(21)
+ 	 spawnpuft(_b.x,_b.y)  
+ 	 _b.rammed=true
+ 	end
+	end	
+end
 __gfx__
 00000000dd6666dddd6666dddd6666dddd6666dddd6666dddd6666dddd6666dddaaddaadda777666666677766667777777777777000000000000000000000000
 00000000d660066dd660066dd660066dd660066dd660066dd660066dd660066d5599559955ddddddddddccddddddcceeeeeeeeee000000000000000000000000
@@ -2345,3 +2405,4 @@ __sfx__
 000500002c040310402f0400100000000310000000000000000000000000000230001c000260001f0002a000240002c000260002e00029000310002b000260002900023000229001d90020900000000000000000
 000500002e040310402c0400100000000310000000000000000000000000000230001c000260001f0002a000240002c000260002e00029000310002b000260002900023000229001d90020900000000000000000
 0001000010150121501415016150181501b1501f15025150391503b1503b1503c1503c150381502d150281502515022150211501f1501d1501c1501b1501a150151500e1500c1501700016000140001300012000
+0001000031050320503205032050330503404036040370403904038000380001f0001e000140000e0000c00019000200001f000200000d0000c0002700020000210002a0000c0000e0002a000210002100000000
