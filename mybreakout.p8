@@ -26,7 +26,7 @@ function _init()
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
 	levels[1]="i9b/p9pp9p/p9pp9p"
 	--levels[1]="/////x4b/s9s"
- --	levels[1]="i9b//x4b//i6b"
+ --levels[1]="i9b//x4b//i6b"
  levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
 
 	shake=0
@@ -92,6 +92,17 @@ function _init()
 	
 	parttimer=0
 	partdx=0.1
+
+	-- infinite loop
+	infcounter=0
+	
+	-- sick messages
+	sick={
+							"so sick!!",
+							"!! kill !!",
+							"impressive!",
+							"subarashii desu!"
+						}
 	
 	--debug
 	debug1=""
@@ -164,6 +175,7 @@ function hitbrick(_b,_combo)
 	local fshtime=8
 	-- standard brick
 	if _b.t == "b" then
+		infcounter=0
 		if _combo then
 			boostchain()
 			score+=10*multiplier*pointsmult
@@ -186,6 +198,7 @@ function hitbrick(_b,_combo)
 		sfx(9)
 	-- hardened brick
 	elseif _b.t == "h" then
+	 infcounter=0
 		if timer_mega > 0 then
 			_b.v=false
 			if _combo then
@@ -209,6 +222,7 @@ function hitbrick(_b,_combo)
 		end
 	-- powerup brick
 	elseif _b.t == "p" then
+	 infcounter=0
 		sfx(7)
 		if _combo then
 			score+=multiplier*pointsmult
@@ -221,6 +235,7 @@ function hitbrick(_b,_combo)
 		_b.fsh=fshtime
 	-- sploding brick
 	elseif _b.t == "s" then
+	 infcounter=0
 		--splode sfx (pink?)
 		sfx(11)
 		shatterbrick(_b,lasthitx,lasthity)
@@ -236,8 +251,9 @@ end
 
 --increase chain by one
 function boostchain()
-	if multiplier==15 then
-		showsash("sick!!",12,1)
+	if multiplier>=15 then
+		local _si=1+rnd(#sick)
+		showsash(sick[_si],12,1)
 	end
 	multiplier+=1
 end
@@ -1451,6 +1467,13 @@ function update_game()
 		end
 	end
 
+	-- infinite loop counter
+	if timer_slow > 0 then
+		infcounter+=0.5
+	else
+		infcounter+=1
+	end
+
 	-- check if pad should grow/shrink
 	if timer_expand > 0 then
 		-- todo gradual growth
@@ -2069,6 +2092,7 @@ function updateball(bi)
  if myball.stuck then
   myball.x=pad_x+sticky_x
   myball.y=pad_y-ball_r-1
+  infcounter=0
  else
   --regular ball physics
   if timer_slow > 0 then
@@ -2200,13 +2224,15 @@ function collide(_b,_c)
   --wall collision
   ----------------
   --puft and sound
+  checkinf(_b)
   spawnpuft(_b.x,_b.y)
-  sfx(0)  
+  sfx(0)
  elseif _c.t=="pad" then
   ----------------
   --pad collision
   ---------------- 
   multiplier=1
+  infcounter=0
   _b.rammed=false
   --change angle
   if abs(pad_dx)>2 and _c.d=="top" then
@@ -2236,11 +2262,23 @@ function collide(_b,_c)
   ----------------
   --brick collision
   ----------------
+  checkinf(_b)
   hitbrick(_c.brick,true)
   if _c.brick.t=="i" then
    spawnpuft(_b.x,_b.y)
   end 
  end
+end
+
+function checkinf(_b)
+	if infcounter>600 then
+		infcounter=0
+		local _nuang
+		repeat
+			_nuang=1+flr(rnd(3))
+		until _nuang!=_b.ang
+		setang(_b,_nuang)
+	end
 end
 
 function coldist(_b,_col)
