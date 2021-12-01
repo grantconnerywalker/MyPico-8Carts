@@ -97,11 +97,10 @@ function _init()
 	infcounter=0
 	
 	-- sick messages
-	sick={
-							"so sick!!",
+	sick={"so sick!!",
 							"!! kill !!",
-							"impressive!",
-							"subarashii desu!"
+							"impressive!!",
+							"subarashii desu!!"
 						}
 	
 	--debug
@@ -251,11 +250,12 @@ end
 
 --increase chain by one
 function boostchain()
+	multiplier+=1
 	if multiplier>=15 then
-		local _si=1+rnd(#sick)
+		local _si=1+flr(rnd(#sick))
+		printh("_si was ".._si)
 		showsash(sick[_si],12,1)
 	end
-	multiplier+=1
 end
 
 --get points
@@ -685,7 +685,7 @@ function box_box(box1_x,box1_y,box1_w,box1_h,box2_x,box2_y,box2_w,box2_h)
 	if box1_y > box2_y+box2_h then	return false end
 	if box1_y+box1_h < box2_y then	return false end
 	if box1_x > box2_x+box2_w then	return false end
-	if box1_x+box1_x < box2_x then	return false end
+	if box1_x+box1_w < box2_x then	return false end
 	return true
 end
 	
@@ -719,6 +719,7 @@ end
 -----------------------------
 
 function showsash(_t,_c,_tc)
+	printh("_t was ".._t)
 	--todo also animate it warping in
 		--sash / banner ui
 	sash_w=0
