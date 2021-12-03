@@ -18,16 +18,18 @@ function _init()
 	// state
 	message=""	
 	mode="start"
+	startlives=2
 	level="xxxxxb"
 	levelnum = 1
 	levels={}
+	loadlevels()
 	--levels[1]="xxxxxb"
 	--levels[2]="bxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbxbx"
 	--levels[1]="i9b//x4b//sbsbsbsbsbsb"
-	levels[1]="i9b/p9pp9p/p9pp9p"
+	--levels[1]="i9b/p9pp9p/p9pp9p"
 	--levels[1]="/////x4b/s9s"
  --levels[1]="i9b//x4b//i6b"
- levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
+ --levels[2]="b9b/p9p/sxsxsxsxsx/xbxbxbxbxbx"
 
 	shake=0
 	
@@ -100,7 +102,9 @@ function _init()
 	sick={"so sick!!",
 							"!! kill !!",
 							"impressive!!",
-							"subarashii desu!!"
+							"subarashii desu!!",
+							"ultra combo!!",
+							"bingo!!!"
 						}
 	
 	--debug
@@ -251,7 +255,7 @@ end
 --increase chain by one
 function boostchain()
 	multiplier+=1
-	if multiplier>=15 then
+	if multiplier==15 then
 		local _si=1+flr(rnd(#sick))
 		printh("_si was ".._si)
 		showsash(sick[_si],12,1)
@@ -339,7 +343,7 @@ end
 function startgame()
 	mode="game"
 	
-	banner=6 -- banner height
+		banner=6 -- banner height
 	
 	pad_x=64
 	pad_y=120
@@ -371,13 +375,71 @@ function startgame()
 	brick_w=9
 	brick_h=4
 	
+	levelnum = 1
+		
+	startlevel()
+--	banner=6 -- banner height
+--	
+--	pad_x=64
+--	pad_y=120
+--	pad_dx=0
+--	pad_wo=24 -- constant original pad width
+--	pad_w=24 -- current pad width
+--	pad_h=3
+--	
+--	-- reset ball
+--	--ball_x=1 --position
+--	--ball_y=64
+--	--ball_dx=1 -- speed
+--	--ball_dy=1
+--	ball_r=2 --radius
+--	ball_dr=0.5
+--	ball_color=10 --color
+--	ball_ang=1
+--	
+--	ball={}
+--	ball[1] = newball()
+--	
+--	ball[1].x=pad_x
+-- ball[1].y=pad_y-ball_r
+-- ball[1].dx=1
+-- ball[1].dy=-1
+-- ball[1].ang=1
+-- ball[1].stuck=true
+--	
+--	brick_w=9
+--	brick_h=4
+--	
+--	resetpills()
+--	
+--	levelnum = 1
+--	level = levels[levelnum]
+--	buildbricks(level)
+--	
+--	lives=2
+--	score=0
+--	multiplier=1
+--	pointsmult=1
+--	
+--	sticky=false
+--	sticky_x=0
+--
+--	showsash("stage "..levelnum,0,7)	
+--
+--	-- check where this is called
+--	-- remove if necessary if it works in here
+--	serveball()
+	
+end
+
+function startlevel()
+	mode="game"
 	resetpills()
 	
-	levelnum = 1
 	level = levels[levelnum]
 	buildbricks(level)
 	
-	lives=2
+	lives=startlives
 	score=0
 	multiplier=1
 	pointsmult=1
@@ -390,8 +452,8 @@ function startgame()
 	-- check where this is called
 	-- remove if necessary if it works in here
 	serveball()
-	
 end
+
 	
 function nextlevel()
 	mode="game"
@@ -416,6 +478,29 @@ function nextlevel()
 	serveball()
 end
 	
+function previouslevel()
+	mode="game"
+	
+	pad_x=52
+	pad_y=120
+	pad_dx=0
+	multiplier=1
+	
+	levelnum -= 1
+	if levelnum <= 0 then
+		-- error. game about to load
+		-- a level that does not exist
+		levelnum = #levels
+	end
+	level = levels[levelnum]
+	buildbricks(level)
+	
+	sticky=false
+	
+	showsash("stage "..levelnum,0,7)	
+	serveball()
+end
+
 	
 function buildbricks(lvl)
 	local i
@@ -652,7 +737,7 @@ function move_paddle()
  end
  if btnp(3) then
   -- todo
-  --previouslevel()
+  previouslevel()
  end
 	-- deceleration
 	if not(buttpress) then
@@ -1260,7 +1345,8 @@ function update_gameover()
 			 govercountdown=-1
 			 blink_s=8
 			 part={}
-	 		startgame()
+	 		--startgame()
+	 		startlevel()
 	 	else
 	 		govercountdown=-1
 			 blink_s=8
@@ -1490,10 +1576,12 @@ function update_game()
 
 	-- big ball loop
 	for i=#ball,1,-1 do
-		-- check if paddle rammed ball
-		padramcheck(ball[i])		
 		--updateball(ball[i])
 		updateball(i)
+	end
+	for i=#ball,1,-1 do
+			-- check if paddle rammed ball
+		padramcheck(ball[i])
 	end
 	
 	-- move pills
@@ -1861,7 +1949,7 @@ function draw_gameover()
 		 _c2=blink_w
 		end
 	end
-	print("press ❎ to restart",30,68,_c1)
+	print("press ❎ to continue",27,68,_c1)
  print("press 🅾️ for main menu",23,74,_c2)
 end
 
@@ -2199,6 +2287,7 @@ function updateball(bi)
      lives=0
      gameover()
     else
+    	multiplier=1
      serveball()
     end
    end
@@ -2350,6 +2439,72 @@ function padramcheck(_b)
  	end
 	end	
 end
+-->8
+-- levels
+
+function loadlevels()
+
+	--01 simple breakout
+	levels[1]="///b9bb9bbbpbbpbbpbbb9bb9b"
+	
+	--02 stairway to heaven
+	levels[2]="/b/bb/bbp/b3/b4/b4p/b6/bsb5/b7p/h9s"
+	
+	--03 invader
+	levels[3]="xxsxxxxxs/xxsxxxxxs/xxxsxxxs/xxxbbbbbxxxxxbbbbbbbxxxbbbbbbbbbxxbbpbbbpbbxxbbbbbbbbbxxbbbbbbbbbxxbxbxxxbxbxxbxbxxxbxbxxxxxbxb/"
+	
+	--04 twin towers
+	levels[4]="//xbbbhxbbbhxxbphbxbphbxxbhpbxbhpbxxhbbbxhbbbxxbbbbxbbbbxxbbbhxbbbhxxbphbxbphbxxbhpbxbhpbxxhbbbxhbbbx"
+	
+	--05 get inside
+	levels[5]="pi//xi/xixxxhh/xixxhbbh/xixhpbbph/xixhbssbh/xixxhbbh/xixxxhh/xi/xi/xi/si9"
+	
+	--11 three burgers
+	levels[6]="///b9bpbbpbbbpbbp/bbhxhbhxhbbbbhxhbhxhbbbbhxhbhxhbb/pbbpbbbpbbpb9b"
+	
+	--07 arrow
+	levels[7]="/xxxxxh/xxxbbxbb/xbbxxhxxbbxbxxbpxpbxxbxbbxxhxxbbxbxxbbxbbxxbxbpxxhxxpbxbxxbpxpbxxbxbbxxhxxbbxbxxbbxbbxxbxbbxxxxxbbxbxxxxxxxxxb"
+	
+	--08 cups high
+	levels[8]="/xixixxxixixxibixxxibixxisixxxisixxiiixxxiiix/xxxbbpbb/xxxbbbbb/xxxpbpbp/xxxbbbbb/xxxbbpbb/"
+	
+	--09 maze
+	levels[9]="i9ix3ix4ixipxixxxxxixixxixxixxixixxipxixxixixpixxixxixixxixxixxixixxixpixxixipxxxxixxixixxxxxixsixi9"
+	
+	--10 mellow center
+	levels[10]="/ph8phx8hhxhhhphhhxhhxhxxxxxhxhhxhxhhhxhxhhxpxhshxpxhhxhxhhhxhxhhxhxxxxxhxhhxh6xhpx8ph9h"
+	
+	--06 oreo
+	levels[11]="///xi8xxbbpbbbpbbxxbbbbbbbbbxxpbbbpbbbpxxbbbbbbbbbxxbbpbbbpbbxxi8x"
+	
+	--12 border wall
+	levels[12]="/bbbsbbbsbbbpxxxxxxxxxpb9b/hiiiiiiiiihpxxxxpxxxxphiiiiiiiiih/bbpbbbbbpbbpxxxxxxxxxpb9b"
+	
+	--13 lungs
+	levels[13]="///bbbpixipbbbiibiixiiibibbbpixipbbbbbbbixibbbbihiiixiiihibbbpixipbbbbbbbixibbbb"
+	
+	--14 clogged lanes
+	levels[14]="//pxpxpxpxpxpbxbxbxbxbxbbxbxbxbxbxbbxbxbxbxbxbbxisisisixbbxbxbxbxbxbbxbxbxbxbxbsxixsxsxixsbxbxbxbxbxb"
+	
+	--15 diagonal
+	levels[15]="///sb/bbbb/bbbbbbb/pbbbbbbbb/bbpbbbbbbbsihbbpbpbbbbxxihbbbbpbbxxxxihibbbpxxxxxxxhibbxxxxxxxxxhi"
+	
+	--16 enegry core
+	levels[16]="//xibpbpbpbixxixxxxxxxixxixxxxxxxixxixiiiiixixxixibsbixixxixibbbixixxixibpbixixxixxxxxxxixxixxxxxxxixxiiiiiiiiix"
+	
+	--17 shelves
+	levels[17]="//xbxbxpxbxbxxixixixixixpxbxbxbxbxpixixixixixixbxpxsxpxbxxixixixixixbxbxbxbxbxbixixixixixixpxbxpxbxpxxixixixixix"
+	
+	--18 lazy devs
+	levels[18]="//xxxxbpb/xbpbihibpbxbihixxxihibbixxxxxxxibpibxxsxxbipbibxxxxxbibxbibxxxbibxxbibbbbbibxxxbibbbib/xxxbihib/"
+	
+	--19 cells
+	levels[19]="/isixisixisiipixipixipiiiixiiixiii/isixisixisiipixipixipiiiixiiixiii/isixisixisiipixipixipiiiixiiixiii"
+	
+	--20 hedgehog
+	levels[20]="/xiixixixiixxixxxxxxxixxxxixxxi/xxxxxp/ixixihixixixxxxxb/xixixbxixixxxxxxb/xiixihixiixxixxxpxxxixxxxixxxi/xxixixixi"
+
+end
 __gfx__
 00000000dd6666dddd6666dddd6666dddd6666dddd6666dddd6666dddd6666dddaaddaadda777666666677766667777777777777000000000000000000000000
 00000000d660066dd660066dd660066dd660066dd660066dd660066dd660066d5599559955ddddddddddccddddddcceeeeeeeeee000000000000000000000000
@@ -2433,7 +2588,7 @@ __sfx__
 00020000193501a3501d3500d3500f350223502435026350283500e3500f35011350123502a3502d3502e35025300000000000000000000000000000000000000000000000000000000000000000000000000000
 00100000000001c3501d3501f3502235023350193101c3202a3502c3502d35018320203502435027350293502c3502d3502e3502e3502e3500000000000000000000000000000000000000000000000000000000
 0003000023450264502b4502e45032450114000000000000197000000000000000000000000000000000000020600000000000037400000000000000000000000000000000000000000000000000000000000000
-000200001c7501c7501d7501d75000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0002000022770257702a7702d770307703d7700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0003000016670126700f6700e6700c6700b6700b6700a6700a6700967009670096700867008670086700767007670076700667006670066700667006670066500665006640076300562008610086100861007610
 00010000350502e050210501a050170503205034050310501d0501805017050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000400000405013050050501d05007050240600c0602c050120403104017030350301c030380301f0303b030240303e0202400026000000000000000000000000000000000000000000000000000000000000000
