@@ -2345,20 +2345,13 @@ end
 function collide(_b,_c)
  --set postion
  _b.x=_c.x
- _b.y=_c.y
- 
-
- --reflect
- if _c.d=="left" or _c.d=="right" then
-  _b.dx=-_b.dx
- else
-  _b.dy=-_b.dy 
- end
+ _b.y=_c.y 
  
  if _c.t=="wall" then
   ----------------
   --wall collision
   ----------------
+  reflect(_b,_c)
   --puft and sound
   checkinf(_b)
   spawnpuft(_b.x,_b.y)
@@ -2366,24 +2359,58 @@ function collide(_b,_c)
  elseif _c.t=="pad" then
   ----------------
   --pad collision
-  ---------------- 
+  ----------------
+  local bend,angf
   multiplier=1
   infcounter=0
-  _b.rammed=false
-  --change angle
-  if abs(pad_dx)>2 and _c.d=="top" then
-   if sign(pad_dx)==sign(_b.dx) then
-    --flatten angle
-    setang(_b,mid(0,_b.ang-1,2))
-   else
-    --raise angle
-    if _b.ang==2 then
-     _b.dx=-_b.dx
-    else
-     setang(_b,mid(0,_b.ang+1,2))
-    end
-   end
+
+		-- hit side. save?  
+  if _c.d=="left" or _c.d=="right" then
+  	if (_b.y+ball_r)>(pad_y+(pad_h/2)) then
+  		-- lost ball
+  		_b.rammed=true
+  	else
+  		-- save it
+  		bend=true
+  		angf=false
+  		--if _c.d=="left" then
+  		--	angf=false
+  		--else
+  		--	angf=false
+  		--end
+  		_c.d="top"
+  		_b.y=pad_y-ball_r
+  	end
   end
+  reflect(_b,_c)
+  
+  --change angle
+  if _c.d=="top" then
+	  if abs(pad_dx)>2 then
+	  	bend=true
+	  	if sign(pad_dx)==sign(_b.dx) then
+	  		angf=true
+	  	else
+	  		angf=false
+	  	end
+	  end
+	  if bend then
+	   if angf then
+	    --flatten angle
+	    setang(_b,mid(0,_b.ang-1,2))
+	   else
+	    --raise angle
+	    if _b.ang==2 then
+	     _b.dx=-_b.dx
+	    else
+	     setang(_b,mid(0,_b.ang+1,2))
+	    end
+	   end
+	  end
+	 end
+	 --reset pos
+	 _b.y=pad_y-ball_r-1
+	 
   --catch powerup
   if sticky and _c.d=="top" then
    releasestuck()
@@ -2398,11 +2425,21 @@ function collide(_b,_c)
   ----------------
   --brick collision
   ----------------
+  reflect(_b,_c)
   checkinf(_b)
   hitbrick(_c.brick,true)
   if _c.brick.t=="i" then
    spawnpuft(_b.x,_b.y)
   end 
+ end
+end
+
+function reflect(_b, _c)
+ --reflect ball
+ if _c.d=="left" or _c.d=="right" then
+  _b.dx=-_b.dx
+ else
+  _b.dy=-_b.dy 
  end
 end
 
@@ -2464,10 +2501,10 @@ function padramcheck(_b)
 		end
 		--change speed of ball
 		if sign(_b.dx)==sign(pad_dx) then
-			_b.dx+=(pad_dx*2)
+			_b.dx+=pad_dx
 		else
 			_b.dx=-_b.dx
-			_b.dx+=(pad_dx*2)
+			_b.dx+=pad_dx
 		end
 		
 		--reset ball position
